@@ -1,6 +1,6 @@
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 import requests
 
@@ -21,6 +21,7 @@ class Notifier:
         return self._webhook_url
 
     def send(self, target: Target, summary: str) -> None:
+        # Future: add LINE, email notification types here
         if self.notification.type == "discord":
             self._send_discord(target, summary)
         else:
@@ -34,14 +35,29 @@ class Notifier:
                 f"Set {self.notification.webhook_url_env} env var."
             )
 
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+        # JST Time
+        jst = timezone(timedelta(hours=9))
+        now_jst = datetime.now(jst).strftime("%Y-%m-%d %H:%M")
+
         message = (
             f"**予約枠の空きが見つかりました**\n\n"
             f"対象: {target.name}\n"
-            f"検出日時: {now}\n"
             f"URL: {target.url}\n"
-            f"状況: {summary}"
+            f"空き状況: {summary}\n"
+            f"検出日時: {now_jst} (JST)\n"
+            f"予約ページ: {target.url}"
         )
+
+        if target.conditions:
+            conds = target.conditions
+            parts = []
+            if conds.days_of_week:
+                parts.append(",".join(conds.days_of_week))
+            if conds.time:
+                parts.append(conds.time)
+            
+            if parts:
+                message += f"\n対象条件: {' '.join(parts)}"
 
         payload = {"content": message}
         try:
