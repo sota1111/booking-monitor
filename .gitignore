@@ -1,0 +1,10 @@
+.env
+config.json
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+logs/*.log
+logs/history.jsonl
+.venv/
+venv/

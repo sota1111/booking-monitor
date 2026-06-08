@@ -1,0 +1,23 @@
+{
+  "targets": [
+    {
+      "name": "りくろーおじさん リクカフェテラス",
+      "url": "https://www.tablecheck.com/shops/rikuro-rikucafeterrace/reserve",
+      "interval_seconds": 300,
+      "available_keywords": ["空きあり", "予約可能", "○"],
+      "unavailable_keywords": ["満席", "空きなし", "予約不可"],
+      "notify": true,
+      "site_type": "tablecheck",
+      "conditions": {
+        "adults": 2,
+        "children_under_3": 1,
+        "days_of_week": ["Saturday", "Sunday"],
+        "time": "15:00"
+      }
+    }
+  ],
+  "notification": {
+    "type": "discord",
+    "webhook_url_env": "DISCORD_WEBHOOK_URL"
+  }
+}
