@@ -56,6 +56,26 @@ python app.py
 ```
 ※Firestore が設定されていない場合、ローカルの JSON ファイル（`logs/history.jsonl` など）に履歴を保存して動作します。
 
+## 認証設定
+
+Webステータス画面（`GET /`）はログイン認証が必要です。`.env` に以下の変数を設定してください。
+
+| 変数名 | 説明 | 例 |
+|--------|------|-----|
+| AUTH_USERNAME | ログインユーザー名 | admin |
+| AUTH_PASSWORD | ログインパスワード | changeme |
+| AUTH_SECRET_KEY | セッション署名キー（必ず変更してください） | random-secret-string |
+
+### 動作確認方法
+
+1. `python app.py` でサーバーを起動（または `docker compose up`）
+2. http://localhost:8080 にアクセス → ログイン画面にリダイレクトされる
+3. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
+4. ログアウトはステータス画面右上の「ログアウト」ボタンから
+
+**注意**: Cloud Scheduler から呼び出される `POST /run` エンドポイントは認証不要です。
+
+
 ## Docker での実行方法
 
 ```bash
