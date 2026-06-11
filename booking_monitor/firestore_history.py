@@ -1,8 +1,10 @@
 import logging
 import os
 from datetime import datetime, timezone
+from types import ModuleType
 from typing import Dict, Optional
 
+firestore: ModuleType | None
 try:
     from google.cloud import firestore
 except ImportError:

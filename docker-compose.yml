@@ -1,0 +1,11 @@
+version: "3.8"
+
+services:
+  booking-monitor:
+    build: .
+    volumes:
+      - ./logs:/app/logs
+      - ./config.json:/app/config.json:ro
+    env_file:
+      - .env
+    restart: unless-stopped

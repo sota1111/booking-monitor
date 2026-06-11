@@ -30,10 +30,11 @@ class Notifier:
     def _send_discord(self, target: Target, summary: str) -> None:
         webhook_url = self._get_webhook_url()
         if not webhook_url:
-            raise RuntimeError(
-                f"Discord webhook URL not set. "
-                f"Set {self.notification.webhook_url_env} env var."
+            logger.warning(
+                f"Discord webhook URL not set ({self.notification.webhook_url_env}). "
+                f"Skipping notification for {target.name}."
             )
+            return
 
         # JST Time
         jst = timezone(timedelta(hours=9))
