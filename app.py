@@ -1,6 +1,7 @@
 import os
 import logging
-from flask import Flask, jsonify
+from functools import wraps
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from booking_monitor.config import load_config
 from booking_monitor.checker import check_target
 from booking_monitor.history import History
@@ -14,6 +15,45 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+app.secret_key = os.environ.get("AUTH_SECRET_KEY", "change-this-secret")
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get("user"):
+            return redirect(url_for("login_page"))
+        return f(*args, **kwargs)
+    return decorated
+
+
+@app.route("/", methods=["GET"])
+@login_required
+def status_page():
+    return render_template("status.html")
+
+
+@app.route("/login", methods=["GET"])
+def login_page():
+    return render_template("login.html", error=None)
+
+
+@app.route("/login", methods=["POST"])
+def login_submit():
+    username = request.form.get("username", "")
+    password = request.form.get("password", "")
+    expected_username = os.environ.get("AUTH_USERNAME", "")
+    expected_password = os.environ.get("AUTH_PASSWORD", "")
+    if username == expected_username and password == expected_password:
+        session["user"] = username
+        return redirect(url_for("status_page"))
+    return render_template("login.html", error="ユーザー名またはパスワードが正しくありません"), 401
+
+
+@app.route("/logout", methods=["POST"])
+def logout():
+    session.clear()
+    return redirect(url_for("login_page"))
+
 
 def get_history():
     """Returns FirestoreHistory if configured, else local History."""
