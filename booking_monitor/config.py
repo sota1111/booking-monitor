@@ -77,3 +77,28 @@ def load_config(path: str) -> Config:
         raise ValueError("No targets defined in config")
 
     return Config(targets=targets, notification=notification)
+
+
+def validate_config(config: Config) -> list[str]:
+    """Validate config and return list of warning messages."""
+    warnings = []
+
+    if not config.targets:
+        warnings.append("No targets defined in config")
+
+    for i, target in enumerate(config.targets):
+        if not target.name:
+            warnings.append(f"Target {i}: missing 'name'")
+        if not target.url:
+            warnings.append(f"Target {i} ({target.name}): missing 'url'")
+        if target.interval_seconds < 60:
+            warnings.append(
+                f"Target '{target.name}': interval_seconds={target.interval_seconds} "
+                f"is less than 60 seconds (may be too aggressive)"
+            )
+        if not target.available_keywords and not target.unavailable_keywords:
+            warnings.append(
+                f"Target '{target.name}': no available_keywords or unavailable_keywords defined"
+            )
+
+    return warnings

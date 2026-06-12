@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ステータス - Booking Monitor</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f0f0; }
+    nav { background: #2c3e50; color: white; padding: 1rem 1.5rem;
+          display: flex; align-items: center; justify-content: space-between; }
+    nav span { font-weight: bold; }
+    nav form button { background: none; border: 1px solid rgba(255,255,255,0.5);
+                      color: white; padding: 0.3rem 0.8rem; border-radius: 4px;
+                      cursor: pointer; font-size: 0.9rem; }
+    main { padding: 1.5rem; max-width: 800px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; padding: 1.5rem;
+            margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    h2 { margin: 0 0 1rem; font-size: 1.1rem; color: #333; }
+    p { color: #666; }
+  </style>
+</head>
+<body>
+  <nav>
+    <span>Booking Monitor</span>
+    <form method="post" action="/logout">
+      <button type="submit">ログアウト</button>
+    </form>
+  </nav>
+  <main>
+    <div class="card">
+      <h2>ステータス</h2>
+      <p>監視システムは稼働中です。</p>
+      <p>定期チェックは Cloud Scheduler によって自動実行されます（<code>POST /run</code>）。</p>
+    </div>
+  </main>
+</body>
+</html>

@@ -48,6 +48,13 @@ def main() -> None:
         sys.exit(1)
 
     logger.info(f"Loaded {len(config.targets)} target(s)")
+
+    from booking_monitor.config import validate_config
+
+    warnings = validate_config(config)
+    for warning in warnings:
+        logger.warning(f"Config warning: {warning}")
+
     run_scheduler(config)
 
 

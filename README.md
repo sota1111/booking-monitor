@@ -1,58 +1,152 @@
 # booking-monitor
 
-予約サイトの空き状況を定期的に監視し、空きが見つかったら Discord で通知するシステムです。
+予約サイトの空き状況を監視し、空きが見つかった場合に Discord で通知するシステムです。Cloud Scheduler と Cloud Run を組み合わせることで、低コストかつ安定した定期監視を実現します。
 
-## 概要
+## アーキテクチャ
 
-- 指定した予約サイトを設定した間隔で自動確認
-- 空きが検出されたら Discord Webhook で通知
-- 重複通知を抑制（同じ空き枠への連続通知なし）
-- エラー発生時も監視継続
+```
+Cloud Scheduler (cron: 0 * * * *)
+  └──POST /run──► Cloud Run (app.py)
+                     ├──► 予約サイト確認 (Playwright / HTTP)
+                     ├──► Firestore (前回結果・通知履歴)
+                     └──► Discord Webhook (状態変化時のみ)
+```
 
 ## 必要な環境
 
 - Python 3.10 以上
 - pip
+- Docker（Cloud Run 使用時）
+- GCP アカウント（Cloud Run 使用時）
 
-## セットアップ
+## ローカル実行方法
 
 ### 1. リポジトリのクローン
-
 ```bash
 git clone https://github.com/sota1111/booking-monitor.git
 cd booking-monitor
 ```
 
 ### 2. 依存パッケージのインストール
-
 ```bash
 pip install -r requirements.txt
 playwright install chromium
 ```
 
-### 3. 環境変数の設定
-
-`.env.example` をコピーして `.env` を作成し、必要な値を設定してください。
-
+### 3. 設定の準備
+`.env.example` をコピーして `.env` を作成し、`DISCORD_WEBHOOK_URL` を設定します。
 ```bash
 cp .env.example .env
-# .env を編集して DISCORD_WEBHOOK_URL を設定
 ```
 
-### 4. 設定ファイルの作成
-
-`config.example.json` をコピーして `config.json` を作成し、監視対象を設定してください。
-
+`config.example.json` をコピーして `config.json` を作成し、監視対象を設定します。
 ```bash
 cp config.example.json config.json
-# config.json を編集して監視対象を設定
 ```
 
-## 実行
-
+### 4. 実行
+**定期実行モード:**
 ```bash
 python main.py
 ```
+
+**HTTP サーバーモード（Cloud Run 互換）:**
+```bash
+python app.py
+```
+※Firestore が設定されていない場合、ローカルの JSON ファイル（`logs/history.jsonl` など）に履歴を保存して動作します。
+
+## 認証設定
+
+Webステータス画面（`GET /`）はログイン認証が必要です。`.env` に以下の変数を設定してください。
+
+| 変数名 | 説明 | 例 |
+|--------|------|-----|
+| AUTH_USERNAME | ログインユーザー名 | admin |
+| AUTH_PASSWORD | ログインパスワード | changeme |
+| AUTH_SECRET_KEY | セッション署名キー（必ず変更してください） | random-secret-string |
+
+### 動作確認方法
+
+1. `python app.py` でサーバーを起動（または `docker compose up`）
+2. http://localhost:8080 にアクセス → ログイン画面にリダイレクトされる
+3. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
+4. ログアウトはステータス画面右上の「ログアウト」ボタンから
+
+**注意**: Cloud Scheduler から呼び出される `POST /run` エンドポイントは認証不要です。
+
+
+## Docker での実行方法
+
+```bash
+docker build -t booking-monitor .
+docker run --env-file .env -p 8080:8080 -v $(pwd)/config.json:/app/config.json booking-monitor
+```
+
+別ターミナルで動作確認を行うには、以下のコマンドを実行します。
+```bash
+curl -X POST http://localhost:8080/run
+```
+
+## GCP 環境のセットアップ
+
+### 6.1 Firestore のセットアップ
+1. GCP コンソールで **Firestore** を選択。
+2. **ネイティブ モード**でデータベースを作成。
+3. データベース ID: `(default)` 推奨。
+4. リージョン: `asia-northeast1` (東京) 推奨。
+5. 無料枠: 1GiB ストレージ、50,000 読み取り/日、20,000 書き込み/日。
+
+### 6.2 Cloud Run へのデプロイ
+```bash
+# デプロイスクリプトを使う方法（推奨）
+GCP_PROJECT_ID=your-project-id \
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/... \
+bash scripts/deploy-cloudrun.sh
+```
+`--no-allow-unauthenticated` フラグにより、認証済みリクエスト（Cloud Scheduler 等）のみが許可されます。
+
+### 6.3 Cloud Scheduler の設定
+```bash
+# サービスアカウント作成（Cloud Run 呼び出し用）
+gcloud iam service-accounts create scheduler-sa \
+  --display-name "Scheduler Service Account"
+
+# Cloud Run 呼び出し権限を付与
+gcloud run services add-iam-policy-binding booking-monitor \
+  --region asia-northeast1 \
+  --member serviceAccount:scheduler-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com \
+  --role roles/run.invoker
+
+# Cloud Run の URL を取得（デプロイ出力等で確認）
+CLOUD_RUN_URL=https://booking-monitor-XXXX-an.a.run.app
+
+# Scheduler ジョブ作成（1時間に1回）
+gcloud scheduler jobs create http booking-monitor-job \
+  --location asia-northeast1 \
+  --schedule "0 * * * *" \
+  --time-zone "Asia/Tokyo" \
+  --uri "${CLOUD_RUN_URL}/run" \
+  --http-method POST \
+  --oidc-service-account-email scheduler-sa@YOUR_PROJECT_ID.iam.gserviceaccount.com \
+  --oidc-token-audience "${CLOUD_RUN_URL}"
+```
+
+## Discord 通知の設定方法
+1. Discord サーバーの「サーバー設定」→「連携サービス」→「Webhook」→「新しい Webhook を作成」。
+2. Webhook URL をコピーして `DISCORD_WEBHOOK_URL` に設定。
+3. 通知条件: 空き状況が「満席 → 空きあり」に変化したときのみ送信されます（重複通知なし）。
+
+## 無料枠内で運用する前提条件
+
+| サービス | 無料枠 | 想定使用量 |
+|---------|-------|---------|
+| Cloud Run | 180,000 vCPU 秒/月、360,000 GiB 秒/月 | 監視処理は数秒で完了 ✓ |
+| Cloud Scheduler | 3 ジョブまで無料 | 1 ジョブ使用 ✓ |
+| Firestore | 50,000 読み取り/日、20,000 書き込み/日、1GiB | 1 回の実行で数読み書き ✓ |
+| Container Registry | 0.5GiB/月まで無料 | 定期的なクリーンアップを推奨 |
+
+**Cloud Scheduler は 3 ジョブまで無料**のため、複数の監視対象は 1 つのジョブでまとめて実行することを推奨します（`config.json` に複数の `targets` を定義）。
 
 ## 設定ファイル（config.json）の説明
 
@@ -73,19 +167,10 @@ python main.py
 | `notification.webhook_url_env` | Discord Webhook URL の環境変数名 |
 
 ## ログの確認
-
-ログは `logs/booking_monitor.log` に出力されます。標準出力にも同時に表示されます。
-
-```bash
-tail -f logs/booking_monitor.log
-```
-
-## 監視の停止
-
-`Ctrl+C` でプロセスを終了してください。
+- **ローカル:** `logs/booking_monitor.log`
+- **Cloud Run:** `gcloud logging read "resource.type=cloud_run_revision"` または GCP コンソールの「ログ」タブ
 
 ## 注意事項
-
-- 確認間隔は短すぎる値（60秒未満）の設定を避けてください
-- 本システムは空き確認と通知のみを行います。予約の自動確定は行いません
-- 対象サイトの利用規約に従って使用してください
+- 確認間隔は短すぎる値（60秒未満）を避けてください。
+- 本システムは空き確認と通知のみを行います。予約の自動確定は行いません。
+- 対象サイトの利用規約に従って使用してください。
