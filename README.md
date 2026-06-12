@@ -99,22 +99,10 @@ curl -X POST http://localhost:8080/run
 
 ### 6.2 Cloud Run へのデプロイ
 ```bash
-# gcloud 認証
-gcloud auth login
-gcloud config set project YOUR_PROJECT_ID
-
-# Container Registry へビルド & プッシュ
-gcloud builds submit --tag gcr.io/YOUR_PROJECT_ID/booking-monitor
-
-# Cloud Run へデプロイ
-gcloud run deploy booking-monitor \
-  --image gcr.io/YOUR_PROJECT_ID/booking-monitor \
-  --platform managed \
-  --region asia-northeast1 \
-  --no-allow-unauthenticated \
-  --set-env-vars GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID,DISCORD_WEBHOOK_URL=YOUR_WEBHOOK_URL \
-  --memory 1Gi \
-  --timeout 300
+# デプロイスクリプトを使う方法（推奨）
+GCP_PROJECT_ID=your-project-id \
+DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/... \
+bash scripts/deploy-cloudrun.sh
 ```
 `--no-allow-unauthenticated` フラグにより、認証済みリクエスト（Cloud Scheduler 等）のみが許可されます。
 
