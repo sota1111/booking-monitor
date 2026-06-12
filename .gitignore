@@ -8,3 +8,6 @@ logs/*.log
 logs/history.jsonl
 .venv/
 venv/
+
+.env.local
+*.env
