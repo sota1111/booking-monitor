@@ -17,8 +17,6 @@ ARTIFACT_REPO="${ARTIFACT_REGISTRY_REPOSITORY:-booking-monitor-registry}"
 IMAGE_VAR="${IMAGE_NAME:-booking-monitor}"
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${IMAGE_VAR}"
 
-DISCORD_WEBHOOK_URL="${DISCORD_WEBHOOK_URL:?DISCORD_WEBHOOK_URL is required}"
-
 echo "== Cloud Run デプロイ: ${SERVICE_NAME} =="
 echo "Project: ${PROJECT_ID} | Region: ${REGION}"
 
@@ -36,13 +34,22 @@ gcloud builds submit . \
   --tag="${IMAGE}:latest" \
   --timeout=600s
 
+# Secret Manager: 初回デプロイ前に以下を実行してください
+# echo -n "value" | gcloud secrets create booking-monitor-auth-password --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create booking-monitor-auth-secret-key --data-file=- --project=$PROJECT_ID
+# echo -n "value" | gcloud secrets create booking-monitor-discord-webhook-url --data-file=- --project=$PROJECT_ID
+# gcloud run services add-iam-policy-binding booking-monitor \
+#   --member="serviceAccount:$(gcloud run services describe booking-monitor --region=$REGION --project=$PROJECT_ID --format='value(spec.template.spec.serviceAccountName)' 2>/dev/null || echo PROJECT_NUMBER-compute@developer.gserviceaccount.com)" \
+#   --role="roles/secretmanager.secretAccessor" --region=$REGION --project=$PROJECT_ID
+
 gcloud run deploy "${SERVICE_NAME}" \
   --image="${IMAGE}:latest" \
   --project="${PROJECT_ID}" \
   --region="${REGION}" \
   --platform=managed \
   --no-allow-unauthenticated \
-  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}" \
+  --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},LOG_LEVEL=${LOG_LEVEL:-INFO},PORT=8080" \
+  --set-secrets="DISCORD_WEBHOOK_URL=booking-monitor-discord-webhook-url:latest,AUTH_PASSWORD=booking-monitor-auth-password:latest,AUTH_SECRET_KEY=booking-monitor-auth-secret-key:latest" \
   --memory=1Gi \
   --timeout=300 \
   --quiet

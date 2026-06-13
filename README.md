@@ -98,6 +98,25 @@ curl -X POST http://localhost:8080/run
 5. 無料枠: 1GiB ストレージ、50,000 読み取り/日、20,000 書き込み/日。
 
 ### 6.2 Cloud Run へのデプロイ
+### GCP Secret Manager セットアップ (Cloud Run本番デプロイ時)
+
+Cloud Run へのデプロイ前に、以下の機密情報をSecret Managerに登録してください。
+
+```bash
+# Secret の作成
+echo -n "パスワード" | gcloud secrets create booking-monitor-auth-password --data-file=- --project=YOUR_PROJECT_ID
+echo -n "秘密鍵" | gcloud secrets create booking-monitor-auth-secret-key --data-file=- --project=YOUR_PROJECT_ID
+echo -n "Webhook URL" | gcloud secrets create booking-monitor-discord-webhook-url --data-file=- --project=YOUR_PROJECT_ID
+
+# Cloud Run サービスアカウントに Secret Manager アクセス権を付与
+# (デプロイ後、またはデフォルトのコンピュートSAに付与)
+gcloud projects add-iam-policy-binding YOUR_PROJECT_ID \
+  --member="serviceAccount:YOUR_PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
+
+ローカル開発では `.env` ファイルに値を直接設定してください。
+
 ```bash
 # gcloud 認証
 gcloud auth login
