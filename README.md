@@ -58,20 +58,32 @@ python app.py
 
 ## 認証設定
 
-Webステータス画面（`GET /`）はログイン認証が必要です。`.env` に以下の変数を設定してください。
+このアプリは Firebase Authentication を使用したログイン認証が必要です。`.env` に以下の変数を設定してください。
 
+### Firebase 設定
+Firebase Console > プロジェクト設定 > アプリ から取得してください。
+
+| 変数名 | 説明 |
+|--------|------|
+| FIREBASE_API_KEY | Firebase API キー |
+| FIREBASE_AUTH_DOMAIN | Firebase 認証ドメイン |
+| FIREBASE_PROJECT_ID | Firebase プロジェクト ID |
+| FIREBASE_APP_ID | Firebase アプリ ID |
+
+### ユーザー制御
 | 変数名 | 説明 | 例 |
 |--------|------|-----|
-| AUTH_USERNAME | ログインユーザー名 | admin |
-| AUTH_PASSWORD | ログインパスワード | changeme |
-| AUTH_SECRET_KEY | セッション署名キー（必ず変更してください） | random-secret-string |
+| ALLOWED_USER_EMAILS | ログインを許可するメールアドレス（カンマ区切り） | `your-email@example.com` |
+| AUTH_SECRET | セッション署名キー（必ず変更してください） | `random-secret-string` |
 
 ### 動作確認方法
 
-1. `python app.py` でサーバーを起動（または `docker compose up`）
-2. http://localhost:8080 にアクセス → ログイン画面にリダイレクトされる
-3. `.env` に設定した `AUTH_USERNAME` / `AUTH_PASSWORD` でログイン
-4. ログアウトはステータス画面右上の「ログアウト」ボタンから
+1. Firebase Console で「Email/Password」認証を有効にします。
+2. ユーザーを作成し、そのメールアドレスを `ALLOWED_USER_EMAILS` に追加します。
+3. `python app.py` でサーバーを起動（または `docker compose up`）
+4. http://localhost:8080 にアクセス → ログイン画面にリダイレクトされる
+5. Firebase で作成したメールアドレスとパスワードでログイン
+6. ログアウトはステータス画面右上の「ログアウト」ボタンから
 
 **注意**: Cloud Scheduler から呼び出される `POST /run` エンドポイントは認証不要です。
 
