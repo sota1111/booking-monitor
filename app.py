@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("AUTH_SECRET_KEY", "change-this-secret")
+app.secret_key = os.environ.get("AUTH_SECRET", "change-this-secret")
 
 def login_required(f):
     @wraps(f)
@@ -34,19 +34,41 @@ def status_page():
 
 @app.route("/login", methods=["GET"])
 def login_page():
-    return render_template("login.html", error=None)
+    return render_template("login.html",
+        firebase_api_key=os.environ.get("FIREBASE_API_KEY", ""),
+        firebase_auth_domain=os.environ.get("FIREBASE_AUTH_DOMAIN", ""),
+        firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID", ""),
+        firebase_app_id=os.environ.get("FIREBASE_APP_ID", ""),
+    )
 
 
-@app.route("/login", methods=["POST"])
-def login_submit():
-    username = request.form.get("username", "")
-    password = request.form.get("password", "")
-    expected_username = os.environ.get("AUTH_USERNAME", "")
-    expected_password = os.environ.get("AUTH_PASSWORD", "")
-    if username == expected_username and password == expected_password:
-        session["user"] = username
-        return redirect(url_for("status_page"))
-    return render_template("login.html", error="ユーザー名またはパスワードが正しくありません"), 401
+@app.route("/session", methods=["POST"])
+def create_session():
+    import firebase_admin
+    from firebase_admin import auth as firebase_auth
+
+    if not firebase_admin._apps:
+        firebase_admin.initialize_app()
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No JSON body"}), 400
+
+    id_token = data.get("idToken", "")
+    allowed_emails_str = os.environ.get("ALLOWED_USER_EMAILS", "")
+    allowed_emails = [e.strip() for e in allowed_emails_str.split(",") if e.strip()]
+
+    try:
+        decoded = firebase_auth.verify_id_token(id_token)
+        email = decoded.get("email", "")
+    except Exception:
+        return jsonify({"error": "Invalid token"}), 401
+
+    if allowed_emails and email not in allowed_emails:
+        return jsonify({"error": "Email not allowed"}), 403
+
+    session["user"] = email
+    return jsonify({"success": True, "email": email})
 
 
 @app.route("/logout", methods=["POST"])
@@ -68,6 +90,29 @@ def get_history():
 
 @app.route("/run", methods=["POST"])
 def run_monitor():
+    # Cloud Scheduler からの OIDC トークン検証
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header.split("Bearer ")[1]
+        try:
+            import google.auth.transport.requests
+            import google.oauth2.id_token
+            request_adapter = google.auth.transport.requests.Request()
+            # verify_oauth2_token を使用して OIDC トークンを検証
+            # Audience は Cloud Run の URL になるが、ここでは汎用的に検証のみ行う
+            google.oauth2.id_token.verify_oauth2_token(token, request_adapter)
+        except Exception as e:
+            logger.warning(f"OIDC token verification failed: {e}")
+            return jsonify({"error": "Unauthorized"}), 401
+    elif os.getenv("RUN_API_KEY") and request.headers.get("X-API-KEY") == os.getenv("RUN_API_KEY"):
+        # APIキーによる簡易認証（開発・テスト用）
+        pass
+    else:
+        # 本番環境（Cloud Run）では --no-allow-unauthenticated により
+        # ここに到達する前に Google 前段で拒否されるが、念のため
+        if os.getenv("GOOGLE_CLOUD_PROJECT") and not auth_header:
+            return jsonify({"error": "Unauthorized"}), 401
+
     try:
         config_path = os.getenv("CONFIG_PATH", "config.json")
         if not os.path.exists(config_path):
