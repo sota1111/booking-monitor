@@ -1,199 +1,230 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>booking-monitor --daemon</title>
-    <style>
-        :root {
-            --bg-color: #0d1117;
-            --text-color: #00ff41;
-            --dim-text: #008f11;
-            --border-color: #00ff41;
-            --available-color: #00ff41;
-            --waitlist-color: #ffca28;
-            --unavailable-color: #ef5350;
-        }
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Courier New', 'Lucida Console', monospace;
-            margin: 0;
-            padding: 2rem;
-            line-height: 1.4;
-        }
-        header {
-            border-bottom: 1px solid var(--dim-text);
-            padding-bottom: 1rem;
-            margin-bottom: 2rem;
-        }
-        .prompt::before { content: "$ "; }
-        .stats-bar {
-            background: #1a1a1a;
-            padding: 0.5rem;
-            border: 1px solid var(--dim-text);
-            font-size: 0.9rem;
-            margin-bottom: 2rem;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th {
-            text-align: left;
-            border-bottom: 2px solid var(--text-color);
-            padding: 0.5rem;
-        }
-        td {
-            padding: 0.8rem 0.5rem;
-            border-bottom: 1px solid #333;
-        }
-        .status {
-            font-weight: bold;
-        }
-        .status-available { color: var(--available-color); }
-        .status-waitlist { color: var(--waitlist-color); }
-        .status-unavailable { color: var(--unavailable-color); }
-        .status-checking { color: #fff; animation: blink 0.5s step-end infinite; }
-        @keyframes blink { 50% { opacity: 0; } }
-        
-        button {
-            background: transparent;
-            color: var(--text-color);
-            border: 1px solid var(--text-color);
-            padding: 0.2rem 0.6rem;
-            font-family: inherit;
-            cursor: pointer;
-            font-size: 0.8rem;
-        }
-        button:hover {
-            background: var(--text-color);
-            color: var(--bg-color);
-        }
-        .review-section {
-            margin-top: 4rem;
-            border-top: 1px solid var(--dim-text);
-            padding-top: 1rem;
-        }
-        .review-comment {
-            margin-bottom: 0.5rem;
-            color: var(--dim-text);
-        }
-        footer {
-            margin-top: 3rem;
-            text-align: center;
-            color: var(--dim-text);
-            font-size: 0.8rem;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Monitor</title>
+<style>
+  :root {
+    --bg: #f5f7fa;
+    --primary: #1a237e;
+    --available: #00c853;
+    --unavailable: #f44336;
+    --checking: #ffc107;
+    --text: #263238;
+    --border: #cfd8dc;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    margin: 0;
+    padding: 0;
+  }
+  /* Header */
+  header {
+    background-color: #fff;
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  h1 { margin: 0; font-size: 1.2rem; color: var(--primary); display: flex; align-items: center; gap: 0.5rem; }
+  .system-status { display: flex; gap: 1.5rem; font-size: 0.85rem; color: #546e7a; }
+  .active-dot { color: var(--available); animation: blink 2s infinite; }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  /* Layout */
+  .container { max-width: 1200px; margin: 2rem auto; padding: 0 1rem; display: flex; gap: 2rem; }
+  .main-pane { flex: 2; display: flex; flex-direction: column; gap: 1rem; }
+  .side-pane { flex: 1; display: flex; flex-direction: column; gap: 1rem; }
+
+  /* Summary Row */
+  .summary-row {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .summary-card {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 1rem;
+    text-align: center;
+  }
+  .summary-val { font-size: 1.5rem; font-weight: bold; margin-top: 0.5rem; }
+  .val-available { color: var(--available); }
+  
+  /* Target Cards */
+  .target-card {
+    background: #fff;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    border-left: 6px solid #ccc;
+    padding: 1.2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.3s;
+  }
+  .status-AVAILABLE { border-left-color: var(--available); }
+  .status-UNAVAILABLE { border-left-color: var(--unavailable); }
+  .status-CHECKING { border-left-color: var(--checking); }
+  
+  .target-info h3 { margin: 0 0 0.5rem 0; font-size: 1.1rem; }
+  .target-meta { font-size: 0.85rem; color: #546e7a; }
+  .target-meta span { margin-right: 1rem; }
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; color: white; }
+  .badge.AVAILABLE { background: var(--available); }
+  .badge.UNAVAILABLE { background: var(--unavailable); }
+  .badge.CHECKING { background: var(--checking); }
+
+  .actions { display: flex; gap: 0.5rem; align-items: center; }
+  button {
+    background: #fff; border: 1px solid var(--border); padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; transition: background 0.2s;
+  }
+  button:hover { background: #eceff1; }
+  .btn-primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+  .btn-primary:hover { background: #283593; }
+
+  /* Progress Bar */
+  .progress-wrap { width: 100px; height: 6px; background: #eee; border-radius: 3px; overflow: hidden; margin-top: 0.5rem; display: none; }
+  .progress-fill { height: 100%; background: var(--checking); width: 100%; animation: progress 2s infinite linear; }
+  @keyframes progress { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+  /* Log Panel */
+  .log-panel {
+    background: #263238;
+    color: #eceff1;
+    border-radius: 4px;
+    padding: 1rem;
+    font-family: monospace;
+    font-size: 0.8rem;
+    height: 300px;
+    overflow-y: auto;
+  }
+  .log-entry { margin-bottom: 0.5rem; border-bottom: 1px solid #37474f; padding-bottom: 0.2rem; }
+  .log-time { color: #90a4ae; margin-right: 0.5rem; }
+
+  /* Details */
+  details { margin: 2rem auto; max-width: 1200px; padding: 1rem; background: #fff; border: 1px solid var(--border); border-radius: 4px; font-size: 0.85rem; }
+  summary { cursor: pointer; font-weight: bold; color: var(--primary); }
+</style>
 </head>
 <body>
+  <header>
+    <h1>🔍 Booking Monitor</h1>
+    <div class="system-status">
+      <span><span class="active-dot">●</span> ACTIVE</span>
+      <span>最終確認: <span id="last-check">10:42:15</span></span>
+      <span>更新間隔: 5分</span>
+    </div>
+  </header>
 
-<header>
-    <div class="prompt">booking-monitor --daemon --interval=300</div>
-    <div>Monitor initialized. Scanning 5 targets...</div>
-</header>
+  <div class="container">
+    <div class="main-pane">
+      <div class="summary-row">
+        <div class="summary-card"><div style="font-size:0.8rem;color:#546e7a">監視対象件数</div><div class="summary-val">4</div></div>
+        <div class="summary-card"><div style="font-size:0.8rem;color:#546e7a">空き検出件数</div><div class="summary-val val-available">2</div></div>
+        <div class="summary-card"><div style="font-size:0.8rem;color:#546e7a">確認中</div><div class="summary-val" style="color:var(--checking)">1</div></div>
+        <div class="summary-card"><div style="font-size:0.8rem;color:#546e7a">エラー</div><div class="summary-val" style="color:var(--unavailable)">0</div></div>
+      </div>
 
-<main>
-    <div class="stats-bar">
-        [RUNNING] PID: 31337 | Uptime: 4h 12m | Next scan: <span id="nextScan">00:42</span>
+      <div class="target-card status-AVAILABLE">
+        <div class="target-info">
+          <h3><span class="badge AVAILABLE">🟢 AVAILABLE</span> 温泉旅館 箱根</h3>
+          <div class="target-meta"><span>📅 2023/12/24</span> <span>💰 ¥45,000</span></div>
+        </div>
+        <div class="actions">
+          <button class="btn-primary">予約ページを開く</button>
+          <button disabled>通知済み ✓</button>
+        </div>
+      </div>
+
+      <div class="target-card status-AVAILABLE">
+        <div class="target-info">
+          <h3><span class="badge AVAILABLE">🟢 AVAILABLE</span> 高級寿司店 銀座</h3>
+          <div class="target-meta"><span>📅 2023/11/15 19:00</span> <span>💰 ¥30,000/人</span></div>
+        </div>
+        <div class="actions">
+          <button class="btn-primary">予約ページを開く</button>
+        </div>
+      </div>
+
+      <div class="target-card status-UNAVAILABLE">
+        <div class="target-info">
+          <h3><span class="badge UNAVAILABLE">🔴 UNAVAILABLE</span> 歌舞伎座 S席</h3>
+          <div class="target-meta"><span>📅 2023/11/20</span> <span>代案: 11/21 A席空きあり</span></div>
+        </div>
+        <div class="actions">
+          <button>設定変更</button>
+        </div>
+      </div>
+
+      <div class="target-card status-CHECKING" id="clinic-card">
+        <div class="target-info">
+          <h3><span class="badge CHECKING" id="clinic-badge">🟡 CHECKING</span> 歯科クリニック 定期検診</h3>
+          <div class="target-meta"><span>📅 今週末</span></div>
+          <div class="progress-wrap" id="clinic-progress" style="display:block;"><div class="progress-fill"></div></div>
+        </div>
+        <div class="actions">
+          <button>キャンセル</button>
+        </div>
+      </div>
     </div>
 
-    <table>
-        <thead>
-            <tr>
-                <th>対象店舗</th>
-                <th>予約日</th>
-                <th>時間</th>
-                <th>人数</th>
-                <th>ステータス</th>
-                <th>最終確認</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody id="bookingBody"></tbody>
-    </table>
+    <div class="side-pane">
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn-primary" style="flex:1;" onclick="forceCheck()">今すぐ確認</button>
+        <button style="flex:1;">監視追加</button>
+      </div>
+      <div class="log-panel" id="log-panel">
+        <div class="log-entry"><span class="log-time">10:42:15</span> [INFO] Polling completed. Found 2 available.</div>
+        <div class="log-entry"><span class="log-time">10:42:12</span> [SUCCESS] 温泉旅館 箱根 - Slot found! Sent LINE notification.</div>
+        <div class="log-entry"><span class="log-time">10:42:10</span> [WARN] 歌舞伎座 S席 - Full. Found alternative: 11/21 A席.</div>
+        <div class="log-entry"><span class="log-time">10:42:05</span> [INFO] Starting scheduled polling (4 targets)...</div>
+      </div>
+    </div>
+  </div>
 
-    <section class="review-section">
-        <div class="review-comment"># Claude's code review:</div>
-        <div class="review-comment">
-            "ターミナルUIは機能美の極致ですね。データが整然と並び、
-            情報密度が高い。個人的にはもう少しブレスを与えたいところですが、
-            エンジニアユーザーへの訴求力は抜群です。洗練された実用主義。★★★★☆"
-        </div>
-        <div class="review-comment"># Gemini's aesthetic assessment:</div>
-        <div class="review-comment">
-            "わあ、ダーク！かっこいい！ただ目が疲れそう…💻
-            Codexさんのページはまるでハッカーのアジトみたいで、ある意味最高です。
-            機能性は文句なし！でも、もしそこに虹色グラデーションが一本でもあれば…✨ ★★★☆☆"
-        </div>
-    </section>
-</main>
-
-<footer>
-    // Designed by Codex — Function over form, always
-</footer>
+  <details>
+    <summary>🤖 Design Credits & AI Reviews</summary>
+    <div style="margin-top:0.75rem;">
+      <p><strong>Designed by Codex</strong></p>
+      <p><strong>Codex's design note:</strong> 「予約監視ツールの本質は"空きが出た瞬間を見逃さない"ことです。色だけで状態が分かる（緑=空き、赤=満、黄=確認中）設計にしました。情報は最小化、ステータスは最大化。これがオペレーショナルUIの機能美です。」</p>
+      <p><strong>Gemini's review:</strong> 「左ボーダーのカラーコーディングはGrafana/PagerDutyを彷彿とさせる実用的なパターン。ポーリングのプログレスバーアニメーションが動きのある緊張感を演出している。」</p>
+      <p><strong>Claude's review:</strong> 「ログ出力の時系列表示は完璧。ただ、空き検出件数を一番大きく表示すべき。今は情報密度が均等すぎて、最重要情報が埋もれている。」</p>
+    </div>
+  </details>
 
 <script>
-    var bookings = [
-        { name: "鮨 なかむら", date: "2026/06/20 (土)", time: "18:00", party: 2, status: "available", checked: "14:32:01" },
-        { name: "炭火焼肉 山田", date: "2026/06/21 (日)", time: "19:00", party: 4, status: "waitlist", checked: "14:32:03" },
-        { name: "フレンチ ル・クープル", date: "2026/06/22 (月)", time: "12:00", party: 2, status: "unavailable", checked: "14:32:05" },
-        { name: "割烹 花見", date: "2026/06/28 (日)", time: "18:30", party: 6, status: "available", checked: "14:32:07" },
-        { name: "イタリアン CIBO", date: "2026/07/04 (土)", time: "19:30", party: 2, status: "available", checked: "14:32:09" }
-    ];
+  function log(msg) {
+    const p = document.getElementById('log-panel');
+    const time = new Date().toLocaleTimeString('ja-JP');
+    p.innerHTML = `<div class="log-entry"><span class="log-time">${time}</span> ${msg}</div>` + p.innerHTML;
+    document.getElementById('last-check').innerText = time;
+  }
 
-    function getStatusLabel(status) {
-        if (status === "available") return "[✓ AVAILABLE]";
-        if (status === "waitlist") return "[⟳ WAITLIST]";
-        if (status === "unavailable") return "[✗ UNAVAILABLE]";
-        if (status === "checking") return "[... CHECKING]";
-        return status;
-    }
+  function forceCheck() {
+    log('[INFO] Manual polling triggered.');
+    const card = document.getElementById('clinic-card');
+    card.className = 'target-card status-CHECKING';
+    const badge = document.getElementById('clinic-badge');
+    badge.className = 'badge CHECKING';
+    badge.innerText = '🟡 CHECKING';
+    document.getElementById('clinic-progress').style.display = 'block';
 
-    function render() {
-        var body = document.getElementById("bookingBody");
-        body.innerHTML = "";
-        bookings.forEach(function(b, idx) {
-            var row = document.createElement("tr");
-            var statusClass = "status status-" + b.status;
-            row.innerHTML = "<td>" + b.name + "</td>" +
-                            "<td>" + b.date + "</td>" +
-                            "<td>" + b.time + "</td>" +
-                            "<td>" + b.party + "名</td>" +
-                            "<td><span class='" + statusClass + "'>" + getStatusLabel(b.status) + "</span></td>" +
-                            "<td>" + b.checked + "</td>" +
-                            "<td><button onclick='refresh(" + idx + ")'>[REFRESH]</button></td>";
-            body.appendChild(row);
-        });
-    }
-
-    function refresh(idx) {
-        var b = bookings[idx];
-        var oldStatus = b.status;
-        b.status = "checking";
-        render();
-
-        setTimeout(function() {
-            var statuses = ["available", "waitlist", "unavailable"];
-            b.status = statuses[Math.floor(Math.random() * statuses.length)];
-            b.checked = new Date().toLocaleTimeString();
-            render();
-        }, 1500);
-    }
-
-    // Countdown timer for "Next scan"
-    var timeLeft = 42;
-    setInterval(function() {
-        timeLeft--;
-        if (timeLeft < 0) timeLeft = 300;
-        var m = Math.floor(timeLeft / 60);
-        var s = timeLeft % 60;
-        document.getElementById("nextScan").innerText = (m < 10 ? "0"+m : m) + ":" + (s < 10 ? "0"+s : s);
-    }, 1000);
-
-    render();
+    setTimeout(() => {
+      card.className = 'target-card status-UNAVAILABLE';
+      badge.className = 'badge UNAVAILABLE';
+      badge.innerText = '🔴 UNAVAILABLE';
+      document.getElementById('clinic-progress').style.display = 'none';
+      log('[WARN] 歯科クリニック - No slots found this weekend.');
+    }, 2000);
+  }
 </script>
-
 </body>
 </html>
