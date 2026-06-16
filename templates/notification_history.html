@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>通知履歴 - Booking Monitor</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #333; }
+    nav {
+      background: #2c3e50; color: white; padding: 0.8rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    nav .brand { font-weight: bold; font-size: 1.1rem; }
+    nav .nav-links { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; }
+    nav .nav-links a:hover { color: white; }
+    nav form { margin: 0; }
+    nav form button {
+      background: none; border: 1px solid rgba(255,255,255,0.5);
+      color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+    }
+    main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { margin: 0 0 1rem; font-size: 1rem; color: #555; font-weight: 600; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+    th { background: #eceff1; text-align: left; padding: 0.5rem 0.7rem; font-weight: 600; white-space: nowrap; }
+    td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+    .badge-ok { background: #e8f5e9; color: #2e7d32; }
+    .badge-skip { background: #fff8e1; color: #f57f17; }
+    .badge-fail { background: #ffebee; color: #c62828; }
+    .overflow-x { overflow-x: auto; }
+    @media (max-width: 600px) { main { padding: 0.6rem; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">Booking Monitor</span>
+    <div class="nav-links">
+      <a href="/">ダッシュボード</a>
+      <a href="/history">監視履歴</a>
+      <a href="/notification-history">通知履歴</a>
+      <a href="/config">設定確認</a>
+    </div>
+    <form method="post" action="/logout">
+      <button type="submit">ログアウト</button>
+    </form>
+  </nav>
+  <main>
+    <div class="card">
+      <h2>通知履歴</h2>
+      <p style="font-size:0.85rem;color:#888;margin-top:-0.5rem">Discord Webhook URLなどの秘密情報はこの画面に表示されません。</p>
+      {% if not records %}
+      <p style="color:#888">まだ通知履歴がありません。</p>
+      {% else %}
+      <div class="overflow-x">
+        <table>
+          <thead>
+            <tr>
+              <th>通知日時</th>
+              <th>対象店舗</th>
+              <th>結果</th>
+              <th>サマリー</th>
+              <th>エラー概要</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for r in records %}
+          <tr>
+            <td style="white-space:nowrap" class="iso-ts" data-iso="{{ r.sent_at }}">{{ r.sent_at }}</td>
+            <td>{{ r.target_name }}</td>
+            <td>
+              {% if r.skipped %}
+              <span class="badge badge-skip">通知スキップ</span>
+              {% elif r.success %}
+              <span class="badge badge-ok">送信成功</span>
+              {% else %}
+              <span class="badge badge-fail">送信失敗</span>
+              {% endif %}
+            </td>
+            <td style="font-size:0.82rem;max-width:200px;word-break:break-all">{{ r.summary or '-' }}</td>
+            <td style="font-size:0.82rem;color:#c62828;max-width:180px;word-break:break-all">
+              {% if r.error %}{{ r.error | truncate(100) }}{% else %}-{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </main>
+  <script>
+    function isoToJst(iso) {
+      if (!iso || iso === '-') return iso;
+      try {
+        return new Date(iso).toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      } catch(e) { return iso; }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.iso-ts').forEach(function(td) {
+        td.textContent = isoToJst(td.dataset.iso);
+      });
+    });
+  </script>
+</body>
+</html>

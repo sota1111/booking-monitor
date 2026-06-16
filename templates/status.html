@@ -3,35 +3,293 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ステータス - Booking Monitor</title>
+  <title>ダッシュボード - Booking Monitor</title>
   <style>
-    body { font-family: sans-serif; margin: 0; padding: 0; background: #f0f0f0; }
-    nav { background: #2c3e50; color: white; padding: 1rem 1.5rem;
-          display: flex; align-items: center; justify-content: space-between; }
-    nav span { font-weight: bold; }
-    nav form button { background: none; border: 1px solid rgba(255,255,255,0.5);
-                      color: white; padding: 0.3rem 0.8rem; border-radius: 4px;
-                      cursor: pointer; font-size: 0.9rem; }
-    main { padding: 1.5rem; max-width: 800px; margin: 0 auto; }
-    .card { background: white; border-radius: 8px; padding: 1.5rem;
-            margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    h2 { margin: 0 0 1rem; font-size: 1.1rem; color: #333; }
-    p { color: #666; }
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #333; }
+    nav {
+      background: #2c3e50; color: white; padding: 0.8rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    nav .brand { font-weight: bold; font-size: 1.1rem; }
+    nav .nav-links { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; padding: 0.2rem 0; }
+    nav .nav-links a:hover { color: white; }
+    nav form { margin: 0; }
+    nav form button {
+      background: none; border: 1px solid rgba(255,255,255,0.5);
+      color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+    }
+    main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
+    .alert { border-radius: 6px; padding: 0.8rem 1rem; margin-bottom: 0.8rem; }
+    .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+    .alert-warning { background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; }
+    .card { background: white; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { margin: 0 0 1rem; font-size: 1rem; color: #555; font-weight: 600; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.6rem;
+      margin-bottom: 1rem;
+    }
+    .stat-box { background: #f9f9f9; border-radius: 6px; padding: 0.8rem; text-align: center; }
+    .stat-box .stat-value { font-size: 1.6rem; font-weight: bold; color: #2c3e50; }
+    .stat-box .stat-value.green { color: #2e7d32; }
+    .stat-box .stat-value.red { color: #c62828; }
+    .stat-box .stat-label { font-size: 0.78rem; color: #777; margin-top: 0.2rem; }
+    .time-info { font-size: 0.85rem; color: #666; }
+    .time-info span { margin-right: 1.5rem; }
+    .run-section { margin-top: 0.8rem; display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; }
+    #run-btn {
+      background: #1565c0; color: white; border: none; padding: 0.5rem 1.2rem;
+      border-radius: 4px; cursor: pointer; font-size: 0.95rem;
+    }
+    #run-btn:disabled { background: #90a4ae; cursor: not-allowed; }
+    #run-result { font-size: 0.9rem; }
+    .result-ok { color: #2e7d32; }
+    .result-err { color: #c62828; }
+    table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
+    th { background: #eceff1; text-align: left; padding: 0.5rem 0.7rem; font-weight: 600; white-space: nowrap; }
+    td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr.highlight { background: #e8f5e9; }
+    .badge {
+      display: inline-block; padding: 0.2rem 0.55rem; border-radius: 12px;
+      font-size: 0.78rem; font-weight: 600; white-space: nowrap;
+    }
+    .badge-available { background: #c8e6c9; color: #1b5e20; }
+    .badge-available-notified { background: #a5d6a7; color: #1b5e20; }
+    .badge-unavailable { background: #e0e0e0; color: #555; }
+    .badge-unchecked { background: #e3f2fd; color: #1565c0; }
+    .badge-error { background: #ffebee; color: #c62828; }
+    .badge-config-error { background: #fff3e0; color: #e65100; }
+    .notify-on { color: #2e7d32; font-weight: bold; }
+    .notify-off { color: #aaa; }
+    .error-detail { font-size: 0.8rem; color: #c62828; max-width: 200px; word-break: break-all; }
+    .checked-at { font-size: 0.78rem; color: #888; white-space: nowrap; }
+    .overflow-x { overflow-x: auto; }
+    @media (max-width: 600px) {
+      main { padding: 0.6rem; }
+      .summary-grid { grid-template-columns: repeat(3, 1fr); }
+      .stat-box .stat-value { font-size: 1.3rem; }
+    }
   </style>
 </head>
 <body>
   <nav>
-    <span>Booking Monitor</span>
+    <span class="brand">Booking Monitor</span>
+    <div class="nav-links">
+      <a href="/">ダッシュボード</a>
+      <a href="/history">監視履歴</a>
+      <a href="/notification-history">通知履歴</a>
+      <a href="/config">設定確認</a>
+    </div>
     <form method="post" action="/logout">
       <button type="submit">ログアウト</button>
     </form>
   </nav>
   <main>
-    <div class="card">
-      <h2>ステータス</h2>
-      <p>監視システムは稼働中です。</p>
-      <p>定期チェックは Cloud Scheduler によって自動実行されます（<code>POST /run</code>）。</p>
+    {% if error %}
+    <div class="alert alert-error">
+      <strong>エラー:</strong> {{ error }}
     </div>
+    {% endif %}
+
+    {% if config_warnings %}
+    <div class="alert alert-warning">
+      <strong>設定警告:</strong>
+      <ul style="margin:0.3rem 0 0;padding-left:1.2rem">
+        {% for w in config_warnings %}<li>{{ w }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <!-- Dashboard -->
+    <div class="card">
+      <h2>ダッシュボード</h2>
+      <div class="summary-grid">
+        <div class="stat-box">
+          <div class="stat-value">{{ summary.total or 0 }}</div>
+          <div class="stat-label">監視対象数</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">{{ summary.active or 0 }}</div>
+          <div class="stat-label">通知有効数</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value green">{{ summary.available or 0 }}</div>
+          <div class="stat-label">空きあり</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">{{ summary.full or 0 }}</div>
+          <div class="stat-label">満席</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value red">{{ summary.failed or 0 }}</div>
+          <div class="stat-label">取得失敗</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">{{ summary.unchecked or 0 }}</div>
+          <div class="stat-label">未確認</div>
+        </div>
+      </div>
+      <div class="time-info">
+        <span>最終チェック: <strong id="last-check">{{ summary.last_check_at or '未実行' }}</strong></span>
+        <span>最終通知: <strong id="last-notify">{{ summary.last_notify_at or '履歴なし' }}</strong></span>
+      </div>
+      <div class="run-section">
+        <button id="run-btn" onclick="runMonitor()">手動実行</button>
+        <span id="run-result"></span>
+      </div>
+    </div>
+
+    <!-- Target List -->
+    <div class="card">
+      <h2>監視対象一覧</h2>
+      {% if not targets %}
+      <p style="color:#888">監視対象が設定されていません。</p>
+      {% else %}
+      <div class="overflow-x">
+        <table>
+          <thead>
+            <tr>
+              <th>店舗名</th>
+              <th>種別</th>
+              <th>曜日</th>
+              <th>時刻</th>
+              <th>大人</th>
+              <th>子ども</th>
+              <th>通知</th>
+              <th>状態</th>
+              <th>最終確認</th>
+              <th>エラー</th>
+            </tr>
+          </thead>
+          <tbody>
+          {% for t in targets %}
+          <tr {% if t.status == 'available' %}class="highlight"{% endif %}>
+            <td>
+              <a href="{{ t.url }}" target="_blank" rel="noopener" style="color:#1565c0;text-decoration:none">
+                {{ t.name }}
+              </a>
+            </td>
+            <td>{{ t.site_type }}</td>
+            <td>
+              {% if t.conditions and t.conditions.days_of_week %}
+              {{ t.conditions.days_of_week | join(', ') }}
+              {% else %}-{% endif %}
+            </td>
+            <td>
+              {% if t.conditions and t.conditions.time %}{{ t.conditions.time }}{% else %}-{% endif %}
+            </td>
+            <td>
+              {% if t.conditions %}{{ t.conditions.adults }}名{% else %}-{% endif %}
+            </td>
+            <td>
+              {% if t.conditions %}{{ t.conditions.children_under_3 }}名{% else %}-{% endif %}
+            </td>
+            <td>
+              {% if t.notify %}
+              <span class="notify-on">ON</span>
+              {% else %}
+              <span class="notify-off">OFF</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if t.status == 'available' and t.notified %}
+              <span class="badge badge-available-notified">空きあり 通知済</span>
+              {% elif t.status == 'available' %}
+              <span class="badge badge-available">空きあり</span>
+              {% elif t.status == 'unavailable' %}
+              <span class="badge badge-unavailable">満席</span>
+              {% elif t.status == 'unchecked' %}
+              <span class="badge badge-unchecked">未確認</span>
+              {% elif t.status == 'error' %}
+              <span class="badge badge-error">取得失敗</span>
+              {% else %}
+              <span class="badge badge-unchecked">{{ t.status }}</span>
+              {% endif %}
+            </td>
+            <td class="checked-at" data-iso="{{ t.checked_at or '' }}">{{ t.checked_at or '-' }}</td>
+            <td>
+              {% if t.error %}
+              <span class="error-detail">{{ t.error | truncate(80) }}</span>
+              {% else %}-{% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+
+    {% set error_targets = targets | selectattr('status', 'equalto', 'error') | list %}
+    {% if error_targets %}
+    <div class="card">
+      <h2 style="color:#c62828">エラー詳細</h2>
+      {% for t in error_targets %}
+      <div style="margin-bottom:0.8rem;padding:0.6rem;background:#ffebee;border-radius:4px">
+        <strong>{{ t.name }}</strong>: <span style="font-size:0.9rem">{{ t.error or 'Unknown error' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
   </main>
+
+  <script>
+    // Convert ISO timestamps to JST for display
+    function isoToJst(iso) {
+      if (!iso) return '-';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      } catch(e) { return iso; }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      const lastCheck = document.getElementById('last-check');
+      if (lastCheck && lastCheck.textContent !== '未実行') {
+        lastCheck.textContent = isoToJst(lastCheck.textContent.trim());
+      }
+      const lastNotify = document.getElementById('last-notify');
+      if (lastNotify && lastNotify.textContent !== '履歴なし') {
+        lastNotify.textContent = isoToJst(lastNotify.textContent.trim());
+      }
+      document.querySelectorAll('.checked-at').forEach(function(td) {
+        const iso = td.dataset.iso;
+        if (iso) td.textContent = isoToJst(iso);
+      });
+    });
+
+    function runMonitor() {
+      const btn = document.getElementById('run-btn');
+      const result = document.getElementById('run-result');
+      btn.disabled = true;
+      btn.textContent = '実行中...';
+      result.textContent = '';
+      result.className = '';
+
+      fetch('/run', { method: 'POST', headers: { 'X-API-KEY': '' } })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          btn.disabled = false;
+          btn.textContent = '手動実行';
+          if (data.status === 'ok') {
+            const available = (data.results || []).filter(function(r) { return r.available; }).length;
+            result.textContent = '✓ 完了 — 空きあり: ' + available + '件';
+            result.className = 'result-ok';
+          } else {
+            result.textContent = '✗ エラー: ' + (data.error || '不明');
+            result.className = 'result-err';
+          }
+        })
+        .catch(function(e) {
+          btn.disabled = false;
+          btn.textContent = '手動実行';
+          result.textContent = '✗ 通信エラー: ' + e.message;
+          result.className = 'result-err';
+        });
+    }
+  </script>
 </body>
 </html>

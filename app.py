@@ -2,7 +2,7 @@ import os
 import logging
 from functools import wraps
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
-from booking_monitor.config import load_config
+from booking_monitor.config import load_config, validate_config
 from booking_monitor.checker import check_target
 from booking_monitor.history import History
 from booking_monitor.notifier import Notifier
@@ -29,7 +29,90 @@ def login_required(f):
 @app.route("/", methods=["GET"])
 @login_required
 def status_page():
-    return render_template("status.html")
+    try:
+        config_path = os.getenv("CONFIG_PATH", "config.json")
+        if not os.path.exists(config_path) and os.path.exists("config.example.json"):
+            config_path = "config.example.json"
+        config = load_config(config_path)
+        config_warnings = validate_config(config)
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        return render_template("status.html", error=str(e), targets=[], summary={}, config_warnings=[])
+
+    history = get_history()
+    latest_states = {s["target_name"]: s for s in history.get_all_latest_states()}
+
+    targets_data = []
+    for target in config.targets:
+        state = latest_states.get(target.name, {})
+        available = state.get("available")
+        notified = state.get("notified", False)
+        checked_at = state.get("checked_at")
+        error = state.get("error")
+
+        if error:
+            status = "error"
+        elif available is None:
+            status = "unchecked"
+        elif available:
+            status = "available"
+        else:
+            status = "unavailable"
+
+        conditions = None
+        if target.conditions:
+            conditions = {
+                "adults": target.conditions.adults,
+                "children_under_3": target.conditions.children_under_3,
+                "days_of_week": target.conditions.days_of_week,
+                "time": target.conditions.time,
+            }
+
+        targets_data.append({
+            "name": target.name,
+            "site_type": target.site_type,
+            "url": target.url,
+            "notify": target.notify,
+            "interval_seconds": target.interval_seconds,
+            "available_keywords": target.available_keywords,
+            "unavailable_keywords": target.unavailable_keywords,
+            "conditions": conditions,
+            "status": status,
+            "notified": notified,
+            "checked_at": checked_at,
+            "error": error,
+        })
+
+    # Dashboard summary
+    total = len(targets_data)
+    active = sum(1 for t in targets_data if t["notify"])
+    available_count = sum(1 for t in targets_data if t["status"] == "available")
+    full_count = sum(1 for t in targets_data if t["status"] == "unavailable")
+    failed_count = sum(1 for t in targets_data if t["status"] == "error")
+    unchecked_count = sum(1 for t in targets_data if t["status"] == "unchecked")
+
+    checked_ats = [t["checked_at"] for t in targets_data if t["checked_at"]]
+    last_check_at = max(checked_ats) if checked_ats else None
+
+    # Last notification time from notification history
+    try:
+        notif_history = history.get_notification_history(limit=1)
+        last_notify_at = notif_history[0]["sent_at"] if notif_history else None
+    except Exception:
+        last_notify_at = None
+
+    summary = {
+        "total": total,
+        "active": active,
+        "available": available_count,
+        "full": full_count,
+        "failed": failed_count,
+        "unchecked": unchecked_count,
+        "last_check_at": last_check_at,
+        "last_notify_at": last_notify_at,
+    }
+
+    return render_template("status.html", targets=targets_data, summary=summary, config_warnings=config_warnings)
 
 
 @app.route("/login", methods=["GET"])
@@ -140,13 +223,48 @@ def run_monitor():
                 if available:
                     if state_changed:
                         if target.notify:
-                            notifier.send(target, summary)
-                            is_notified = True
-                            notified_this_turn = True
+                            try:
+                                notifier.send(target, summary)
+                                is_notified = True
+                                notified_this_turn = True
+                                history.store_notification_history(
+                                    target_name=target.name,
+                                    url=target.url,
+                                    summary=summary,
+                                    success=True,
+                                    skipped=False,
+                                )
+                            except Exception as notif_err:
+                                logger.error(f"Notification failed for {target.name}: {notif_err}")
+                                history.store_notification_history(
+                                    target_name=target.name,
+                                    url=target.url,
+                                    summary=summary,
+                                    success=False,
+                                    skipped=False,
+                                    error=str(notif_err),
+                                )
+                        else:
+                            # notify=False: availability found but notification skipped
+                            history.store_notification_history(
+                                target_name=target.name,
+                                url=target.url,
+                                summary=summary,
+                                success=False,
+                                skipped=True,
+                            )
                 else:
                     is_notified = False
                 
                 history.record(target.name, target.url, available, is_notified)
+                history.store_check_history(
+                    target_name=target.name,
+                    url=target.url,
+                    available=available,
+                    summary=summary,
+                    notified=notified_this_turn,
+                    state_changed=state_changed,
+                )
                 
                 results.append({
                     "target": target.name,
@@ -158,6 +276,15 @@ def run_monitor():
             except Exception as e:
                 logger.error(f"Error checking target {target.name}: {e}")
                 history.record(target.name, target.url, False, False, error=str(e))
+                history.store_check_history(
+                    target_name=target.name,
+                    url=target.url,
+                    available=False,
+                    summary="",
+                    notified=False,
+                    state_changed=False,
+                    error=str(e),
+                )
                 results.append({
                     "target": target.name,
                     "available": False,
@@ -171,6 +298,69 @@ def run_monitor():
     except Exception as e:
         logger.error(f"Execution error: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/history", methods=["GET"])
+@login_required
+def history_page():
+    history = get_history()
+    records = history.get_check_history(limit=200)
+    return render_template("history.html", records=records)
+
+
+@app.route("/notification-history", methods=["GET"])
+@login_required
+def notification_history_page():
+    history = get_history()
+    records = history.get_notification_history(limit=200)
+    return render_template("notification_history.html", records=records)
+
+
+@app.route("/config", methods=["GET"])
+@login_required
+def config_page():
+    try:
+        config_path = os.getenv("CONFIG_PATH", "config.json")
+        if not os.path.exists(config_path) and os.path.exists("config.example.json"):
+            config_path = "config.example.json"
+        config = load_config(config_path)
+        config_warnings = validate_config(config)
+    except Exception as e:
+        return render_template("config.html", config=None, config_warnings=[], error=str(e))
+
+    # Build safe config dict (exclude webhook URLs and secrets)
+    targets_data = []
+    for target in config.targets:
+        conditions = None
+        if target.conditions:
+            conditions = {
+                "adults": target.conditions.adults,
+                "children_under_3": target.conditions.children_under_3,
+                "days_of_week": target.conditions.days_of_week,
+                "time": target.conditions.time,
+            }
+        targets_data.append({
+            "name": target.name,
+            "site_type": target.site_type,
+            "url": target.url,
+            "interval_seconds": target.interval_seconds,
+            "available_keywords": target.available_keywords,
+            "unavailable_keywords": target.unavailable_keywords,
+            "notify": target.notify,
+            "conditions": conditions,
+        })
+
+    safe_config = {
+        "targets": targets_data,
+        "notification": {
+            "type": config.notification.type,
+            # webhook_url_env shows env var name only, not the value
+            "webhook_url_env": config.notification.webhook_url_env,
+        },
+    }
+
+    return render_template("config.html", config=safe_config, config_warnings=config_warnings, error=None)
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", 8080))
