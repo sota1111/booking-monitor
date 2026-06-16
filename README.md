@@ -8,8 +8,17 @@
 Cloud Scheduler (cron: 0 * * * *)
   └──POST /run──► Cloud Run (app.py)
                      ├──► 予約サイト確認 (Playwright / HTTP)
-                     ├──► Firestore (前回結果・通知履歴)
-                     └──► Discord Webhook (状態変化時のみ)
+                     ├──► Firestore または ローカル JSONL
+                     │       ├── monitoring_results / history.jsonl（最新状態）
+                     │       ├── check_history（時系列履歴）
+                     │       └── notification_history（通知履歴）
+                     └──► Discord Webhook（状態変化時のみ）
+
+ブラウザ (ログイン後)
+  └──GET /──────► ダッシュボード（監視一覧・状態・手動実行）
+  └──GET /history──► 監視履歴
+  └──GET /notification-history──► 通知履歴
+  └──GET /config──► 設定確認
 ```
 
 ## 必要な環境
@@ -87,6 +96,58 @@ Firebase Console > プロジェクト設定 > アプリ から取得してくだ
 
 **注意**: Cloud Scheduler から呼び出される `POST /run` エンドポイントは認証不要です。
 
+
+## Web 画面一覧
+
+ログイン後、以下の画面を利用できます。
+
+| パス | 画面名 | 説明 |
+|------|--------|------|
+| `/` | ダッシュボード | 監視対象数・空きあり件数・最終チェック日時などのサマリーと、監視対象一覧を表示。手動実行ボタンも設置。 |
+| `/history` | 監視履歴 | チェックごとの日時・結果・状態変化・エラー概要を時系列で確認できます。 |
+| `/notification-history` | 通知履歴 | Discord 通知の送信日時・対象店舗・成功/失敗/スキップを表示。Webhook URL などの秘密情報は表示されません。 |
+| `/config` | 設定確認 | config.json の監視条件（キーワード・チェック間隔・人数条件など）を画面で確認できます。秘密情報は表示されません。 |
+
+### ダッシュボード（`/`）
+
+- 上部に監視対象数・通知有効数・空きあり件数・満席件数・取得失敗件数・最終チェック日時・最終通知日時を表示
+- 監視対象一覧: 店舗名（予約 URL リンク）・サイト種別・対象曜日と時刻・大人/子ども人数・通知 ON/OFF・状態バッジ・最終確認日時
+- 状態バッジ:
+  - 🟢 **空きあり** / **空きあり 通知済** — 予約可能な枠が見つかっている
+  - ⬜ **満席** — 現在予約不可
+  - 🔵 **未確認** — まだチェックが実行されていない
+  - 🔴 **取得失敗** — チェック中にエラーが発生
+- 手動実行ボタン: ボタン1つでチェックを即時実行。実行中は二重押下を防止し、完了後に結果（空きあり件数）を表示します。
+
+### 監視履歴（`/history`）
+
+- チェック日時（JST）・対象店舗名・空きあり/満席/取得失敗の結果・状態変化の有無・通知有無・サマリー・エラー概要を表示
+- 店舗名でリアルタイム絞り込みが可能
+- 最新の 200 件を表示（ローカル: `logs/check_history.jsonl` / Firestore: `check_history` コレクション）
+
+### 通知履歴（`/notification-history`）
+
+- Discord 通知の送信日時・対象店舗・送信成功/失敗/スキップの状態を確認できます
+- 重複通知を防いだ場合は「通知スキップ」と表示します
+- Webhook URL などの秘密情報は表示されません
+
+### 設定確認（`/config`）
+
+- config.json の全監視対象の設定内容を一覧表示します
+- 空きありキーワード・満席キーワード・チェック間隔・人数条件・通知設定を確認できます
+- チェック間隔（`interval_seconds`）が 60 秒未満の場合、画面上に警告を表示します
+- TableCheck サイトと汎用 HTTP サイトの違いが分かるようにラベル表示します
+- Webhook URL などの秘密情報（環境変数の値）は表示されません（環境変数名のみ表示）
+
+## データ保存先（ローカル vs Firestore）
+
+| 保存先 | 条件 | 保存ファイル/コレクション |
+|--------|------|--------------------------|
+| ローカル JSONL | `GOOGLE_CLOUD_PROJECT` 環境変数が未設定 | `logs/history.jsonl`（最新状態）<br>`logs/check_history.jsonl`（時系列履歴）<br>`logs/notification_history.jsonl`（通知履歴） |
+| Firestore | `GOOGLE_CLOUD_PROJECT` 環境変数を設定済み | `monitoring_results`（最新状態）<br>`check_history`（時系列履歴）<br>`notification_history`（通知履歴） |
+
+ローカルモードは Firestore なしで動作確認できます。`GOOGLE_CLOUD_PROJECT` を設定すると自動的に Firestore を使用します。
+接続失敗時は自動的にローカル JSONL にフォールバックします。
 
 ## Docker での実行方法
 
