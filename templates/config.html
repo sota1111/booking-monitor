@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設定確認 - Booking Monitor</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #333; }
+    nav {
+      background: #2c3e50; color: white; padding: 0.8rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;
+    }
+    nav .brand { font-weight: bold; font-size: 1.1rem; }
+    nav .nav-links { display: flex; gap: 0.8rem; align-items: center; flex-wrap: wrap; }
+    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; }
+    nav .nav-links a:hover { color: white; }
+    nav form { margin: 0; }
+    nav form button {
+      background: none; border: 1px solid rgba(255,255,255,0.5);
+      color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+    }
+    main { padding: 1rem; max-width: 900px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card h2 { margin: 0 0 1rem; font-size: 1rem; color: #555; font-weight: 600; }
+    .alert { border-radius: 6px; padding: 0.8rem 1rem; margin-bottom: 0.8rem; }
+    .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+    .alert-warning { background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; }
+    .target-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 1rem; margin-bottom: 0.8rem; }
+    .target-header { display: flex; align-items: center; gap: 0.8rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+    .target-name { font-weight: bold; font-size: 1rem; }
+    .badge { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 12px; font-size: 0.78rem; font-weight: 600; }
+    .badge-tc { background: #e8eaf6; color: #3949ab; }
+    .badge-generic { background: #f3e5f5; color: #7b1fa2; }
+    .badge-warn { background: #fff3e0; color: #e65100; }
+    dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; font-size: 0.88rem; margin: 0; }
+    dt { color: #888; font-weight: 600; }
+    dd { margin: 0; word-break: break-all; }
+    .kw { display: inline-block; background: #f5f5f5; padding: 0.1rem 0.4rem; border-radius: 4px; margin: 0.1rem; font-size: 0.82rem; }
+    .interval-warn { color: #e65100; font-weight: bold; }
+    @media (max-width: 600px) { main { padding: 0.6rem; } dl { grid-template-columns: 1fr; } dt { margin-top: 0.4rem; } }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand">Booking Monitor</span>
+    <div class="nav-links">
+      <a href="/">ダッシュボード</a>
+      <a href="/history">監視履歴</a>
+      <a href="/notification-history">通知履歴</a>
+      <a href="/config">設定確認</a>
+    </div>
+    <form method="post" action="/logout">
+      <button type="submit">ログアウト</button>
+    </form>
+  </nav>
+  <main>
+    {% if error %}
+    <div class="alert alert-error"><strong>エラー:</strong> {{ error }}</div>
+    {% endif %}
+
+    {% if config_warnings %}
+    <div class="alert alert-warning">
+      <strong>設定警告:</strong>
+      <ul style="margin:0.3rem 0 0;padding-left:1.2rem">
+        {% for w in config_warnings %}<li>{{ w }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    {% if config %}
+    <div class="card">
+      <h2>通知設定</h2>
+      <dl>
+        <dt>通知タイプ</dt><dd>{{ config.notification.type }}</dd>
+        <dt>Webhook 環境変数名</dt><dd><code>{{ config.notification.webhook_url_env }}</code>（値は非表示）</dd>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h2>監視対象 ({{ config.targets | length }} 件)</h2>
+      {% for t in config.targets %}
+      <div class="target-card">
+        <div class="target-header">
+          <span class="target-name">{{ t.name }}</span>
+          {% if t.site_type == 'tablecheck' %}
+          <span class="badge badge-tc">TableCheck</span>
+          {% else %}
+          <span class="badge badge-generic">汎用 HTTP</span>
+          {% endif %}
+          {% if not t.notify %}
+          <span style="color:#aaa;font-size:0.85rem">通知OFF</span>
+          {% endif %}
+        </div>
+        <dl>
+          <dt>URL</dt>
+          <dd><a href="{{ t.url }}" target="_blank" rel="noopener" style="color:#1565c0">{{ t.url }}</a></dd>
+
+          <dt>チェック間隔</dt>
+          <dd>
+            {% if t.interval_seconds < 60 %}
+            <span class="interval-warn">{{ t.interval_seconds }}秒 ⚠ 短すぎます（推奨: 60秒以上）</span>
+            {% else %}
+            {{ t.interval_seconds }}秒
+            {% endif %}
+          </dd>
+
+          {% if t.conditions %}
+          <dt>対象曜日</dt>
+          <dd>
+            {% if t.conditions.days_of_week %}{{ t.conditions.days_of_week | join(', ') }}{% else %}指定なし{% endif %}
+          </dd>
+          <dt>対象時刻</dt><dd>{{ t.conditions.time or '指定なし' }}</dd>
+          <dt>大人</dt><dd>{{ t.conditions.adults }}名</dd>
+          <dt>3歳以下の子ども</dt><dd>{{ t.conditions.children_under_3 }}名</dd>
+          {% endif %}
+
+          {% if t.site_type == 'tablecheck' %}
+          <dt>種別メモ</dt><dd>TableCheck サイト — Playwright でブラウザ操作を行います</dd>
+          {% else %}
+          <dt>種別メモ</dt><dd>汎用 HTTP キーワードチェック</dd>
+          {% endif %}
+
+          <dt>空きありキーワード</dt>
+          <dd>
+            {% if t.available_keywords %}
+            {% for kw in t.available_keywords %}<span class="kw">{{ kw }}</span>{% endfor %}
+            {% else %}指定なし{% endif %}
+          </dd>
+
+          <dt>満席キーワード</dt>
+          <dd>
+            {% if t.unavailable_keywords %}
+            {% for kw in t.unavailable_keywords %}<span class="kw">{{ kw }}</span>{% endfor %}
+            {% else %}指定なし{% endif %}
+          </dd>
+        </dl>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </main>
+</body>
+</html>
