@@ -12,18 +12,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+
 class FirestoreHistory:
     def __init__(self):
         if firestore is None:
             raise ImportError("google-cloud-firestore is not installed")
-        
+
         project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
         if not project_id:
             raise ValueError("GOOGLE_CLOUD_PROJECT environment variable is not set")
-        
+
         database_id = os.getenv("FIRESTORE_DATABASE_ID", "(default)")
         self.collection_name = os.getenv("FIRESTORE_COLLECTION", "monitoring_results")
-        
+
         try:
             self.db = firestore.Client(project=project_id, database=database_id)
         except Exception as e:

@@ -91,7 +91,7 @@ class History:
         try:
             with open(CHECK_HISTORY_FILE, "r", encoding="utf-8") as f:
                 lines = [line.strip() for line in f if line.strip()]
-            records = [json.loads(l) for l in lines]
+            records = [json.loads(line) for line in lines]
             return list(reversed(records[-limit:]))
         except Exception as e:
             logger.warning(f"Failed to read check history: {e}")
@@ -130,7 +130,7 @@ class History:
         try:
             with open(NOTIFICATION_HISTORY_FILE, "r", encoding="utf-8") as f:
                 lines = [line.strip() for line in f if line.strip()]
-            records = [json.loads(l) for l in lines]
+            records = [json.loads(line) for line in lines]
             return list(reversed(records[-limit:]))
         except Exception as e:
             logger.warning(f"Failed to read notification history: {e}")

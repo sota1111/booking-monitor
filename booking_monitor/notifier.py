@@ -56,7 +56,7 @@ class Notifier:
                 parts.append(",".join(conds.days_of_week))
             if conds.time:
                 parts.append(conds.time)
-            
+
             if parts:
                 message += f"\n対象条件: {' '.join(parts)}"
 

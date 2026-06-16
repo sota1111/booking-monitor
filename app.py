@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("AUTH_SECRET", "change-this-secret")
 
+
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -117,7 +118,8 @@ def status_page():
 
 @app.route("/login", methods=["GET"])
 def login_page():
-    return render_template("login.html",
+    return render_template(
+        "login.html",
         firebase_api_key=os.environ.get("FIREBASE_API_KEY", ""),
         firebase_auth_domain=os.environ.get("FIREBASE_AUTH_DOMAIN", ""),
         firebase_project_id=os.environ.get("FIREBASE_PROJECT_ID", ""),
@@ -171,6 +173,7 @@ def get_history():
             logger.warning(f"Firestore unavailable, falling back to local history: {e}")
     return History()
 
+
 @app.route("/run", methods=["POST"])
 def run_monitor():
     # Cloud Scheduler からの OIDC トークン検証
@@ -202,23 +205,23 @@ def run_monitor():
             # Fallback to example if config.json doesn't exist for easier testing/dev
             if os.path.exists("config.example.json"):
                 config_path = "config.example.json"
-        
+
         config = load_config(config_path)
         history = get_history()
         notifier = Notifier(config.notification)
-        
+
         results = []
         for target in config.targets:
             try:
                 available, summary = check_target(target)
                 last_state = history.get_last_state(target.name)
-                
+
                 was_available = last_state.get("available", False) if last_state else False
                 was_notified = last_state.get("notified", False) if last_state else False
-                
+
                 state_changed = available and not was_available
                 notified_this_turn = False
-                
+
                 is_notified = was_notified
                 if available:
                     if state_changed:
@@ -255,7 +258,7 @@ def run_monitor():
                             )
                 else:
                     is_notified = False
-                
+
                 history.record(target.name, target.url, available, is_notified)
                 history.store_check_history(
                     target_name=target.name,
@@ -265,7 +268,7 @@ def run_monitor():
                     notified=notified_this_turn,
                     state_changed=state_changed,
                 )
-                
+
                 results.append({
                     "target": target.name,
                     "available": available,
@@ -292,9 +295,9 @@ def run_monitor():
                     "notified": False,
                     "state_changed": False
                 })
-        
+
         return jsonify({"status": "ok", "results": results}), 200
-        
+
     except Exception as e:
         logger.error(f"Execution error: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
