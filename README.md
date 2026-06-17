@@ -94,7 +94,17 @@ Firebase Console > プロジェクト設定 > アプリ から取得してくだ
 5. Firebase で作成したメールアドレスとパスワードでログイン
 6. ログアウトはステータス画面右上の「ログアウト」ボタンから
 
-**注意**: Cloud Scheduler から呼び出される `POST /run` エンドポイントは認証不要です。
+### 定期実行用認証 (`POST /run`)
+
+Cloud Scheduler からの呼び出しには OIDC 認証を使用します。以下の環境変数を設定することでセキュリティを強化できます。
+
+| 変数名 | 説明 | 例 |
+|--------|------|-----|
+| `OIDC_AUDIENCE` | トークンの期待 Audience。Cloud Run のサービス URL を設定します。 | `https://booking-monitor-xxxx.run.app` |
+| `SCHEDULER_SA_EMAIL` | 呼び出しを許可するサービスアカウント Email（任意）。 | `scheduler-sa@project.iam.gserviceaccount.com` |
+| `RUN_API_KEY` | 開発・テスト用の API キー（`X-API-KEY` ヘッダー）。 | `your-secret-key` |
+
+**注意**: `OIDC_AUDIENCE` を設定した場合、呼び出し元の Audience 設定と一致しないと `401 Unauthorized` になります。
 
 
 ## Web 画面一覧

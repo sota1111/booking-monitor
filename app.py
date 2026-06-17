@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 app.secret_key = os.environ.get("AUTH_SECRET", "change-this-secret")
 
+# Global flag to ensure OIDC_AUDIENCE warning is logged only once
+_oidc_audience_warning_logged = False
+
 
 def login_required(f):
     @wraps(f)
@@ -184,20 +187,34 @@ def run_monitor():
             import google.auth.transport.requests
             import google.oauth2.id_token
             request_adapter = google.auth.transport.requests.Request()
-            # verify_oauth2_token を使用して OIDC トークンを検証
-            # Audience は Cloud Run の URL になるが、ここでは汎用的に検証のみ行う
-            google.oauth2.id_token.verify_oauth2_token(token, request_adapter)
+
+            oidc_audience = os.getenv("OIDC_AUDIENCE")
+            if not oidc_audience:
+                global _oidc_audience_warning_logged
+                if not _oidc_audience_warning_logged:
+                    logger.warning("OIDC_AUDIENCE is not set. Audience verification is skipped (not recommended).")
+                    _oidc_audience_warning_logged = True
+
+            # OIDC トークンを検証 (Audience を指定)
+            claims = google.oauth2.id_token.verify_oauth2_token(
+                token, request_adapter, audience=oidc_audience
+            )
+
+            # 呼び出し元サービスアカウント email の検証 (設定されている場合のみ)
+            scheduler_sa_email = os.getenv("SCHEDULER_SA_EMAIL")
+            if scheduler_sa_email:
+                if claims.get("email") != scheduler_sa_email or not claims.get("email_verified"):
+                    logger.warning(f"Unauthorized service account: {claims.get('email')}")
+                    return jsonify({"error": "Unauthorized"}), 401
         except Exception as e:
-            logger.warning(f"OIDC token verification failed: {e}")
+            logger.warning("OIDC token verification failed: %s", type(e).__name__)
             return jsonify({"error": "Unauthorized"}), 401
     elif os.getenv("RUN_API_KEY") and request.headers.get("X-API-KEY") == os.getenv("RUN_API_KEY"):
         # APIキーによる簡易認証（開発・テスト用）
         pass
     else:
-        # 本番環境（Cloud Run）では --no-allow-unauthenticated により
-        # ここに到達する前に Google 前段で拒否されるが、念のため
-        if os.getenv("GOOGLE_CLOUD_PROJECT") and not auth_header:
-            return jsonify({"error": "Unauthorized"}), 401
+        # 認証経路に該当しない場合はデフォルト拒否
+        return jsonify({"error": "Unauthorized"}), 401
 
     try:
         config_path = os.getenv("CONFIG_PATH", "config.json")
