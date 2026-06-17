@@ -2,7 +2,9 @@ import logging
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from booking_monitor.config import Target
+from booking_monitor.sites._resilience import wait_for_required_selector
 from booking_monitor.sites.base import BaseSite
+from booking_monitor.sites.exceptions import StructureChangeError
 
 if TYPE_CHECKING:
     from booking_monitor.sites.browser import BrowserManager
@@ -72,15 +74,15 @@ class TableCheckSite(BaseSite):
             except Exception as e:
                 logger.warning(f"Could not set children count: {e}")
 
-            # Wait for calendar to render
-            try:
-                await page.wait_for_selector(
-                    "[class*='calendar'], [class*='Calendar'], "
-                    "table[class*='date']",
-                    timeout=10000,
-                )
-            except PlaywrightTimeoutError:
-                logger.warning("Calendar selector timed out, proceeding with page content")
+            # Wait for the calendar (a required structural element). Retry with
+            # exponential backoff; if it never appears the site structure likely
+            # changed, so capture a screenshot and raise StructureChangeError.
+            await wait_for_required_selector(
+                page,
+                "[class*='calendar'], [class*='Calendar'], table[class*='date']",
+                url=self.target.url,
+                timeout_ms=10000,
+            )
 
             # Check page text for keyword-based availability
             body_element = page.locator("body")
@@ -106,6 +108,10 @@ class TableCheckSite(BaseSite):
 
             return False, "No available slots matching conditions"
 
+        except StructureChangeError:
+            # Site structure change: propagate as-is (already logged with context),
+            # keeping it distinct from a generic failure or "no availability".
+            raise
         except PlaywrightTimeoutError as e:
             raise RuntimeError(f"Playwright timeout: {e}")
         except Exception as e:
