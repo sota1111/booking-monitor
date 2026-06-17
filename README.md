@@ -211,6 +211,28 @@ bash scripts/deploy-cloudrun.sh
 ```
 `--no-allow-unauthenticated` フラグにより、認証済みリクエスト（Cloud Scheduler 等）のみが許可されます。
 
+### 6.2.1 GitHub Actions による自動デプロイ (CI/CD)
+
+`.github/workflows/deploy-cloudrun.yml` により、GitHub Actions から Cloud Run へ自動デプロイできます。
+
+- **トリガー**: `main` ブランチへの push（手動実行用に `workflow_dispatch` も対応）
+- **認証方式**: Workload Identity Federation（JSON キーは使用しない）
+- **権限**: `permissions: contents: read` / `id-token: write`
+- **処理**: Docker build → Artifact Registry push → Cloud Run deploy
+- コンテナは **ポート 8080**（`$PORT`）で listen するため、追加のポート設定は不要
+
+Settings → Secrets and variables → Actions で以下の **必須 Secret（7件）** を設定してください:
+
+| Secret 名 | 説明 |
+|---|---|
+| `GCP_PROJECT_ID` | GCP プロジェクト ID |
+| `GCP_PROJECT_NUMBER` | GCP プロジェクト番号 |
+| `GCP_REGION` | Cloud Run / Artifact Registry のリージョン（例: `asia-northeast1`） |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Workload Identity Federation プロバイダのリソース名 |
+| `GCP_SERVICE_ACCOUNT` | デプロイ用サービスアカウントのメールアドレス |
+| `ARTIFACT_REGISTRY_REPOSITORY` | Artifact Registry リポジトリ名 |
+| `CLOUD_RUN_SERVICE` | Cloud Run サービス名（`booking-monitor`） |
+
 ### 6.3 Cloud Scheduler の設定
 ```bash
 # サービスアカウント作成（Cloud Run 呼び出し用）
