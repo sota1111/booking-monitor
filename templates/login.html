@@ -29,23 +29,14 @@
       <input type="email" id="email" name="email" required autofocus placeholder="your-email@example.com">
       <label for="password">パスワード</label>
       <input type="password" id="password" name="password" required>
+      <input type="hidden" id="csrfToken" value="{{ csrf_token }}">
       <button type="submit" id="submitBtn">ログイン</button>
     </form>
   </div>
-  <script type="module">
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-app.js';
-    import { getAuth, signInWithEmailAndPassword } from 'https://www.gstatic.com/firebasejs/11.0.0/firebase-auth.js';
-
-    const firebaseConfig = {
-      apiKey: "{{ firebase_api_key }}",
-      authDomain: "{{ firebase_auth_domain }}",
-      projectId: "{{ firebase_project_id }}",
-      appId: "{{ firebase_app_id }}",
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-
+  <script>
+    // 案1: server-side authentication. The browser POSTs the email/password to
+    // our own /session endpoint, which verifies them via Firebase REST server-side.
+    // No Firebase SDK runs in the browser.
     const form = document.getElementById('loginForm');
     const errorEl = document.getElementById('error');
     const submitBtn = document.getElementById('submitBtn');
@@ -58,31 +49,23 @@
 
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
+      const csrfToken = document.getElementById('csrfToken').value;
 
       try {
-        const credential = await signInWithEmailAndPassword(auth, email, password);
-        const idToken = await credential.user.getIdToken();
         const res = await fetch('/session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ idToken }),
+          body: JSON.stringify({ email, password, csrf_token: csrfToken }),
         });
         if (res.ok) {
           window.location.href = '/';
         } else {
           const data = await res.json().catch(() => ({}));
-          errorEl.textContent = data.error || 'ログインに失敗しました';
+          errorEl.textContent = data.error || 'メールアドレスまたはパスワードが正しくありません';
           errorEl.style.display = 'block';
         }
       } catch (err) {
-        const msg = err.message || '';
-        if (msg.includes('auth/invalid-credential') || msg.includes('auth/wrong-password') || msg.includes('auth/user-not-found')) {
-          errorEl.textContent = 'メールアドレスまたはパスワードが正しくありません';
-        } else if (msg.includes('auth/too-many-requests')) {
-          errorEl.textContent = 'ログイン試行が多すぎます。しばらく待ってから再試行してください';
-        } else {
-          errorEl.textContent = 'ログインに失敗しました';
-        }
+        errorEl.textContent = 'ログインに失敗しました';
         errorEl.style.display = 'block';
       } finally {
         submitBtn.disabled = false;
