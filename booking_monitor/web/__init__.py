@@ -1,25 +1,39 @@
-import os
 import logging
-from flask import Flask
+import os
 
-def create_app() -> Flask:
-    """App factory to create and configure the Flask application."""
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from starlette.middleware.sessions import SessionMiddleware
+
+
+def create_app() -> FastAPI:
+    """App factory to create and configure the FastAPI application."""
     # Configure logging
     logging.basicConfig(
         level=os.getenv("LOG_LEVEL", "INFO"),
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
     )
 
-    app = Flask(__name__, template_folder="../../templates", static_folder="../../static")
-    app.secret_key = os.environ.get("AUTH_SECRET", "change-this-secret")
+    app = FastAPI(title="Booking Monitor")
 
-    # Register Blueprints
-    from booking_monitor.web.auth import auth_bp
-    from booking_monitor.web.views import views_bp
-    from booking_monitor.web.monitor import monitor_bp
+    # Session Middleware
+    app.add_middleware(
+        SessionMiddleware,
+        secret_key=os.environ.get("AUTH_SECRET", "change-this-secret")
+    )
 
-    app.register_blueprint(auth_bp)
-    app.register_blueprint(views_bp)
-    app.register_blueprint(monitor_bp)
+    # Static files if directory exists
+    static_dir = os.path.join(os.path.dirname(__file__), "../../static")
+    if os.path.exists(static_dir):
+        app.mount("/static", StaticFiles(directory=static_dir), name="static")
+
+    # Include routers
+    from booking_monitor.web.auth import router as auth_router
+    from booking_monitor.web.monitor import router as monitor_router
+    from booking_monitor.web.views import router as views_router
+
+    app.include_router(auth_router)
+    app.include_router(views_router)
+    app.include_router(monitor_router)
 
     return app

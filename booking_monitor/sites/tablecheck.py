@@ -11,9 +11,9 @@ class TableCheckSite(BaseSite):
     def __init__(self, target: Target):
         super().__init__(target)
 
-    def check(self) -> Tuple[bool, str]:
-        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
-        from playwright.sync_api import sync_playwright
+    async def check(self) -> Tuple[bool, str]:
+        from playwright.async_api import TimeoutError as PlaywrightTimeoutError
+        from playwright.async_api import async_playwright
 
         conditions = self.target.conditions
         adults = conditions.adults if conditions else 2
@@ -21,12 +21,12 @@ class TableCheckSite(BaseSite):
         days_of_week = conditions.days_of_week if conditions else ["Saturday", "Sunday"]
         target_time = conditions.time if conditions else "15:00"
 
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            page = browser.new_page()
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
             try:
                 logger.info(f"Opening TableCheck URL: {self.target.url}")
-                page.goto(
+                await page.goto(
                     self.target.url, timeout=30000, wait_until="networkidle"
                 )
 
@@ -36,8 +36,8 @@ class TableCheckSite(BaseSite):
                         "select[name*='adult'], select[id*='adult'], "
                         "[data-testid*='adult']"
                     )
-                    if page.locator(adult_selector).count() > 0:
-                        page.select_option(adult_selector, str(adults))
+                    if await page.locator(adult_selector).count() > 0:
+                        await page.select_option(adult_selector, str(adults))
                         logger.info(f"Set adults to {adults}")
                     else:
                         logger.info("Adult dropdown not found, skipping count selection")
@@ -50,15 +50,15 @@ class TableCheckSite(BaseSite):
                         "select[name*='child'], select[id*='child'], "
                         "[data-testid*='child']"
                     )
-                    if children > 0 and page.locator(child_selector).count() > 0:
-                        page.select_option(child_selector, str(children))
+                    if children > 0 and await page.locator(child_selector).count() > 0:
+                        await page.select_option(child_selector, str(children))
                         logger.info(f"Set children to {children}")
                 except Exception as e:
                     logger.warning(f"Could not set children count: {e}")
 
                 # Wait for calendar to render
                 try:
-                    page.wait_for_selector(
+                    await page.wait_for_selector(
                         "[class*='calendar'], [class*='Calendar'], "
                         "table[class*='date']",
                         timeout=10000,
@@ -67,7 +67,8 @@ class TableCheckSite(BaseSite):
                     logger.warning("Calendar selector timed out, proceeding with page content")
 
                 # Check page text for keyword-based availability
-                page_text = page.inner_text("body")
+                body_element = page.locator("body")
+                page_text = await body_element.inner_text()
 
                 for kw in self.target.unavailable_keywords:
                     if kw in page_text and not any(
@@ -80,7 +81,7 @@ class TableCheckSite(BaseSite):
                         return True, f"Available keyword found: {kw}"
 
                 # Try to find enabled weekend slots in calendar DOM
-                available_dates = self._find_available_weekend_slots(
+                available_dates = await self._find_available_weekend_slots(
                     page, days_of_week, target_time
                 )
                 if available_dates:
@@ -94,9 +95,9 @@ class TableCheckSite(BaseSite):
             except Exception as e:
                 raise RuntimeError(f"TableCheck check failed: {e}")
             finally:
-                browser.close()
+                await browser.close()
 
-    def _find_available_weekend_slots(
+    async def _find_available_weekend_slots(
         self, page, days_of_week: List[str], target_time: str
     ) -> List[str]:
         """Look for available slots in the calendar DOM."""
@@ -110,10 +111,10 @@ class TableCheckSite(BaseSite):
         ]
         try:
             for selector in selectors:
-                elements = page.locator(selector).all()
+                elements = await page.locator(selector).all()
                 for el in elements[:10]:
                     try:
-                        label = el.get_attribute("aria-label") or el.inner_text()
+                        label = (await el.get_attribute("aria-label")) or (await el.inner_text())
                         if label:
                             available.append(label.strip())
                     except Exception:

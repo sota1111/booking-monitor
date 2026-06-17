@@ -1,33 +1,33 @@
 import logging
 from typing import Tuple
 
-import requests
+import httpx
 
 from booking_monitor.config import Target
 
 logger = logging.getLogger(__name__)
 
 
-def check_target(target: Target) -> Tuple[bool, str]:
+async def check_target(target: Target) -> Tuple[bool, str]:
     """Returns (available: bool, summary: str)."""
     if target.site_type == "tablecheck":
         from booking_monitor.sites.tablecheck import TableCheckSite
         site = TableCheckSite(target)
-        return site.check()
+        return await site.check()
     else:
-        return _check_generic(target)
+        return await _check_generic(target)
 
 
-def _check_generic(target: Target) -> Tuple[bool, str]:
-    """Generic HTTP + keyword check for simple sites."""
+async def _check_generic(target: Target) -> Tuple[bool, str]:
+    """Generic HTTP + keyword check for simple sites using httpx."""
     try:
-        resp = requests.get(
-            target.url,
-            timeout=30,
-            headers={"User-Agent": "Mozilla/5.0 (compatible; BookingMonitor/1.0)"},
-        )
-        resp.raise_for_status()
-        text = resp.text
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                target.url,
+                headers={"User-Agent": "Mozilla/5.0 (compatible; BookingMonitor/1.0)"},
+            )
+            resp.raise_for_status()
+            text = resp.text
     except Exception as e:
         raise RuntimeError(f"HTTP fetch failed: {e}")
 

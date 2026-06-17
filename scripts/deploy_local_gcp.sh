@@ -49,7 +49,7 @@ gcloud run deploy "${SERVICE_NAME}" \
   --platform=managed \
   --no-allow-unauthenticated \
   --set-env-vars="GOOGLE_CLOUD_PROJECT=${PROJECT_ID},LOG_LEVEL=${LOG_LEVEL:-INFO},PORT=8080" \
-  --set-secrets="DISCORD_WEBHOOK_URL=booking-monitor-discord-webhook-url:latest,AUTH_PASSWORD=booking-monitor-auth-password:latest,AUTH_SECRET_KEY=booking-monitor-auth-secret-key:latest" \
+  --set-secrets="DISCORD_WEBHOOK_URL=booking-monitor-discord-webhook-url:latest,AUTH_PASSWORD=booking-monitor-auth-password:latest,AUTH_SECRET=booking-monitor-auth-secret-key:latest" \
   --memory=1Gi \
   --timeout=300 \
   --quiet
