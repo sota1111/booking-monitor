@@ -1,5 +1,7 @@
 from typing import Any, Dict, List, Tuple
+
 from booking_monitor.history import History
+
 
 def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     """Builds the targets data and summary for the status page."""

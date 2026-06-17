@@ -1,5 +1,7 @@
 import os
+
 from booking_monitor.config import load_config
+
 
 def resolve_config_path() -> str:
     """Resolves the configuration file path, falling back to example if necessary."""

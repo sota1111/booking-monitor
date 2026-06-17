@@ -1,5 +1,6 @@
-import os
 import logging
+import os
+
 from booking_monitor.history import History
 
 logger = logging.getLogger(__name__)
