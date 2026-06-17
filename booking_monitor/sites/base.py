@@ -9,7 +9,7 @@ class BaseSite(ABC):
         self.target = target
 
     @abstractmethod
-    def check(self) -> Tuple[bool, str]:
+    async def check(self) -> Tuple[bool, str]:
         """
         Returns (available: bool, summary: str).
         Raises exception on fatal error.

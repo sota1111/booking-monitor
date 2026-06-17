@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 
@@ -28,7 +29,7 @@ def run_scheduler(config: Config) -> None:
             logger.info(f"Checking: {target.name}")
 
             try:
-                available, summary = check_target(target)
+                available, summary = asyncio.run(check_target(target))
                 prev_state = history.get_last_state(target.name)
                 was_available = prev_state.get("available", False) if prev_state else False
                 was_notified = prev_state.get("notified", False) if prev_state else False

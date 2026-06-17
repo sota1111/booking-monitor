@@ -1,19 +1,20 @@
 import logging
 from typing import Any, Dict, List
+
 from booking_monitor.checker import check_target
-from booking_monitor.notifier import Notifier
 from booking_monitor.history import History
+from booking_monitor.notifier import Notifier
 
 logger = logging.getLogger(__name__)
 
-def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
+async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
     """Runs checks for all targets in the configuration and records history."""
     notifier = Notifier(config.notification)
     results = []
 
     for target in config.targets:
         try:
-            available, summary = check_target(target)
+            available, summary = await check_target(target)
             last_state = history.get_last_state(target.name)
 
             was_available = last_state.get("available", False) if last_state else False
