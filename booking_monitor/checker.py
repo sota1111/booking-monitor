@@ -1,19 +1,29 @@
 import logging
-from typing import Tuple
+from typing import TYPE_CHECKING, Optional, Tuple
 
 import httpx
 
 from booking_monitor.config import Target
 
+if TYPE_CHECKING:
+    from booking_monitor.sites.browser import BrowserManager
+
 logger = logging.getLogger(__name__)
 
 
-async def check_target(target: Target) -> Tuple[bool, str]:
-    """Returns (available: bool, summary: str)."""
+async def check_target(
+    target: Target, browser_manager: "Optional[BrowserManager]" = None
+) -> Tuple[bool, str]:
+    """Returns (available: bool, summary: str).
+
+    When ``browser_manager`` is provided, browser-based checks reuse the shared
+    browser; otherwise they launch their own (backward compatible). The generic
+    HTTP path ignores the manager.
+    """
     if target.site_type == "tablecheck":
         from booking_monitor.sites.tablecheck import TableCheckSite
         site = TableCheckSite(target)
-        return await site.check()
+        return await site.check(browser_manager)
     else:
         return await _check_generic(target)
 
