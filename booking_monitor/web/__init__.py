@@ -19,7 +19,9 @@ def create_app() -> FastAPI:
     # Session Middleware
     app.add_middleware(
         SessionMiddleware,
-        secret_key=os.environ.get("AUTH_SECRET", "change-this-secret")
+        secret_key=os.environ.get("AUTH_SECRET", "change-this-secret"),
+        https_only=True,  # Secure cookie (served over HTTPS on Cloud Run)
+        same_site="lax",  # HttpOnly is the default
     )
 
     # Static files if directory exists
