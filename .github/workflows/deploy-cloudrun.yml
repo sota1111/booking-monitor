@@ -51,9 +51,6 @@ jobs:
         env:
           IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REGISTRY_REPOSITORY }}/${{ secrets.CLOUD_RUN_SERVICE }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
-          ALLOWED_USER_EMAILS: ${{ secrets.ALLOWED_USER_EMAILS }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE }} \
@@ -62,4 +59,5 @@ jobs:
             --project "$GCP_PROJECT_ID" \
             --platform managed \
             --allow-unauthenticated \
-            --set-env-vars "^@^GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}@FIREBASE_API_KEY=${FIREBASE_API_KEY}@ALLOWED_USER_EMAILS=${ALLOWED_USER_EMAILS}@AUTH_SECRET=${AUTH_SECRET}@DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}"
+            --set-env-vars "^@^GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}@ALLOWED_USER_EMAILS=sota.moro@gmail.com@DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}" \
+            --set-secrets "FIREBASE_WEB_API_KEY=FIREBASE_API_KEY:latest,AUTH_SECRET=booking-monitor-auth-secret:latest"
