@@ -78,9 +78,9 @@ async def create_session(request: Request):
     ):
         return JSONResponse({"error": "CSRF token mismatch"}, status_code=403)
 
-    api_key = os.environ.get("FIREBASE_API_KEY", "")
+    api_key = os.environ.get("FIREBASE_WEB_API_KEY") or os.environ.get("FIREBASE_API_KEY") or ""
     if not api_key:
-        logger.error("FIREBASE_API_KEY is not configured")
+        logger.error("FIREBASE_WEB_API_KEY / FIREBASE_API_KEY is not configured")
         return JSONResponse({"error": "サーバー設定エラー"}, status_code=500)
 
     # Verify credentials server-side via Identity Toolkit REST.
