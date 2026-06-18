@@ -285,7 +285,7 @@ gcloud scheduler jobs create http booking-monitor-job \
 | `targets[].available_keywords` | 空きありと判定するキーワード |
 | `targets[].unavailable_keywords` | 空きなしと判定するキーワード |
 | `targets[].notify` | 通知の有効/無効 |
-| `targets[].site_type` | サイト種別（`tablecheck` または `generic`） |
+| `targets[].site_type` | サイト種別（`tablecheck` または `generic`）。新しいサイトの追加方法は [docs/adding-a-site.md](docs/adding-a-site.md) を参照 |
 | `targets[].conditions.adults` | 大人の人数 |
 | `targets[].conditions.children_under_3` | 3歳以下の子供の人数 |
 | `targets[].conditions.days_of_week` | 対象曜日（例: `["Saturday", "Sunday"]`） |

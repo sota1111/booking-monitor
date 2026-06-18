@@ -1,6 +1,8 @@
-"""Unit tests for the matcher / availability logic in booking_monitor.checker.
+"""Unit tests for the matcher / availability logic exercised via
+``booking_monitor.checker.check_target``.
 
-``httpx`` is mocked so the generic HTTP path runs without network access, and
+``httpx`` is mocked (on the ``GenericSite`` plugin module, where the generic
+HTTP path now lives) so it runs without network access, and
 ``TableCheckSite.check`` is patched so ``check_target`` routing is verified
 without launching a browser.
 """
@@ -9,9 +11,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from booking_monitor import checker
 from booking_monitor.checker import check_target
 from booking_monitor.config import Target
+from booking_monitor.sites import generic as generic_site
 
 
 def _target(*, site_type="generic", available=None, unavailable=None):
@@ -54,7 +56,7 @@ class _FakeAsyncClient:
 def _patch_client(*, text=None, exc=None):
     resp = _FakeResp(text) if text is not None else None
     return patch.object(
-        checker.httpx,
+        generic_site.httpx,
         "AsyncClient",
         lambda *a, **k: _FakeAsyncClient(resp=resp, exc=exc),
     )
