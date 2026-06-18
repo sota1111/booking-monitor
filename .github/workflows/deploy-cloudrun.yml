@@ -50,10 +50,16 @@ jobs:
       - name: Deploy to Cloud Run
         env:
           IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REGISTRY_REPOSITORY }}/${{ secrets.CLOUD_RUN_SERVICE }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          FIREBASE_API_KEY: ${{ secrets.FIREBASE_API_KEY }}
+          ALLOWED_USER_EMAILS: ${{ secrets.ALLOWED_USER_EMAILS }}
+          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
         run: |
           gcloud run deploy ${{ secrets.CLOUD_RUN_SERVICE }} \
             --image "$IMAGE:${{ github.sha }}" \
             --region ${{ secrets.GCP_REGION }} \
-            --project ${{ secrets.GCP_PROJECT_ID }} \
+            --project "$GCP_PROJECT_ID" \
             --platform managed \
-            --allow-unauthenticated
+            --allow-unauthenticated \
+            --set-env-vars "^@^GOOGLE_CLOUD_PROJECT=${GCP_PROJECT_ID}@FIREBASE_API_KEY=${FIREBASE_API_KEY}@ALLOWED_USER_EMAILS=${ALLOWED_USER_EMAILS}@AUTH_SECRET=${AUTH_SECRET}@DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL}"
