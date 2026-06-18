@@ -76,7 +76,8 @@ Firebase Console > プロジェクト設定 > アプリ から取得してくだ
 
 | 変数名 | 説明 |
 |--------|------|
-| FIREBASE_API_KEY | Firebase API キー |
+| FIREBASE_WEB_API_KEY | Firebase Web API キー（サーバサイドREST認証用・優先）。未設定時は `FIREBASE_API_KEY` にフォールバック |
+| FIREBASE_API_KEY | Firebase API キー（`FIREBASE_WEB_API_KEY` 未設定時のフォールバック） |
 | FIREBASE_AUTH_DOMAIN | Firebase 認証ドメイン |
 | FIREBASE_PROJECT_ID | Firebase プロジェクト ID |
 | FIREBASE_APP_ID | Firebase アプリ ID |

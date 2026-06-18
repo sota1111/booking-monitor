@@ -29,6 +29,26 @@ def create_app() -> FastAPI:
     if os.path.exists(static_dir):
         app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
+    # Startup auth-config check: log each missing auth setting distinctly so that
+    # misconfiguration is visible in Cloud Run logs at boot time.
+    @app.on_event("startup")
+    def _check_auth_config() -> None:
+        firebase_api_key = os.getenv("FIREBASE_WEB_API_KEY") or os.getenv("FIREBASE_API_KEY")
+        auth_secret = os.getenv("AUTH_SECRET")
+        allowed_emails = os.getenv("ALLOWED_USER_EMAILS")
+        missing = False
+        if not firebase_api_key:
+            logging.warning("FIREBASE_WEB_API_KEY / FIREBASE_API_KEY not configured")
+            missing = True
+        if not auth_secret:
+            logging.warning("AUTH_SECRET not configured")
+            missing = True
+        if not allowed_emails:
+            logging.warning("ALLOWED_USER_EMAILS not configured")
+            missing = True
+        if not missing:
+            logging.info("auth config OK")
+
     # Include routers
     from booking_monitor.web.auth import router as auth_router
     from booking_monitor.web.monitor import router as monitor_router
