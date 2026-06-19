@@ -5,11 +5,34 @@ from typing import List, Optional
 
 
 @dataclass
+class DateRange:
+    """Inclusive date range as ``YYYY-MM-DD`` strings."""
+
+    start: str
+    end: str
+
+
+@dataclass
+class TimeRange:
+    """Time range as ``HH:MM`` strings with a step in minutes (default 15)."""
+
+    start: str
+    end: str
+    step_minutes: int = 15
+
+
+@dataclass
 class Conditions:
     adults: int = 2
     children_under_3: int = 0
     days_of_week: List[str] = field(default_factory=list)
     time: str = ""
+    # Range-based monitoring (SOT-833). When set, the monitor expands the
+    # date_range x time_range product (AND search) into individual slots and
+    # reports per-slot availability. Legacy ``time``/``days_of_week`` remain as
+    # a fallback when these are absent (backward compatible).
+    date_range: Optional[DateRange] = None
+    time_range: Optional[TimeRange] = None
 
 
 @dataclass
@@ -49,11 +72,27 @@ def load_config(path: str) -> Config:
         conditions_data = t.get("conditions")
         conditions = None
         if conditions_data:
+            date_range = None
+            dr = conditions_data.get("date_range")
+            if dr and dr.get("start") and dr.get("end"):
+                date_range = DateRange(start=dr["start"], end=dr["end"])
+
+            time_range = None
+            tr = conditions_data.get("time_range")
+            if tr and tr.get("start") and tr.get("end"):
+                time_range = TimeRange(
+                    start=tr["start"],
+                    end=tr["end"],
+                    step_minutes=int(tr.get("step_minutes", 15)),
+                )
+
             conditions = Conditions(
                 adults=conditions_data.get("adults", 2),
                 children_under_3=conditions_data.get("children_under_3", 0),
                 days_of_week=conditions_data.get("days_of_week", []),
                 time=conditions_data.get("time", ""),
+                date_range=date_range,
+                time_range=time_range,
             )
         targets.append(
             Target(

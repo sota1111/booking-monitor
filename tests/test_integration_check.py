@@ -45,7 +45,7 @@ async def test_generic_available(fixture_server):
     target = _target(
         f"{fixture_server}/generic_available.html", site_type="generic"
     )
-    available, summary = await check_target(target)
+    available, summary, _slots = await check_target(target)
     assert available is True
     assert "空きあり" in summary
 
@@ -55,7 +55,7 @@ async def test_generic_unavailable(fixture_server):
     target = _target(
         f"{fixture_server}/generic_unavailable.html", site_type="generic"
     )
-    available, summary = await check_target(target)
+    available, summary, _slots = await check_target(target)
     assert available is False
     assert "満席" in summary
 
@@ -69,7 +69,7 @@ async def test_tablecheck_available(fixture_server):
     target = _target(
         f"{fixture_server}/tablecheck_available.html", site_type="tablecheck"
     )
-    available, summary = await check_target(target)
+    available, summary, _slots = await check_target(target)
     assert available is True
     assert summary
 
@@ -80,6 +80,6 @@ async def test_tablecheck_unavailable(fixture_server):
     target = _target(
         f"{fixture_server}/tablecheck_unavailable.html", site_type="tablecheck"
     )
-    available, summary = await check_target(target)
+    available, summary, _slots = await check_target(target)
     assert available is False
     assert summary

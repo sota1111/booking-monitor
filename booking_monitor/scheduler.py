@@ -36,7 +36,7 @@ async def _run_loop(config: Config) -> None:
                 logger.info(f"Checking: {target.name}")
 
                 try:
-                    available, summary = await check_target(
+                    available, summary, slots = await check_target(
                         target, browser_manager=browser_manager
                     )
                     prev_state = history.get_last_state(target.name)
@@ -55,7 +55,9 @@ async def _run_loop(config: Config) -> None:
                         else:
                             logger.info(f"Skipping duplicate notification for: {target.name}")
 
-                    history.record(target.name, target.url, available, notified)
+                    history.record(
+                        target.name, target.url, available, notified, slots=slots
+                    )
                     expired_notified.pop(target.name, None)
                     logger.info(
                         f"Result for {target.name}: available={available}, summary={summary}"

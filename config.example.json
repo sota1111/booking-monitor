@@ -13,7 +13,8 @@
         "adults": 2,
         "children_under_3": 1,
         "days_of_week": ["Saturday", "Sunday"],
-        "time": "15:00"
+        "date_range": { "start": "2026-07-01", "end": "2026-07-31" },
+        "time_range": { "start": "11:00", "end": "15:00", "step_minutes": 15 }
       }
     }
   ],

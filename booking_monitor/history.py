@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 logger = logging.getLogger(__name__)
 HISTORY_FILE = "logs/history.jsonl"
@@ -44,6 +44,7 @@ class History:
         available: bool,
         notified: bool,
         error: Optional[str] = None,
+        slots: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         entry = {
             "target_name": target_name,
@@ -52,6 +53,7 @@ class History:
             "notified": notified,
             "checked_at": datetime.now(timezone.utc).isoformat(),
             "error": error,
+            "slots": slots or [],
         }
         self._cache[target_name] = entry
         self._flush()
@@ -65,6 +67,7 @@ class History:
         notified: bool,
         state_changed: bool,
         error: Optional[str] = None,
+        slots: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Appends a time-series check event to check_history.jsonl."""
         os.makedirs(os.path.dirname(CHECK_HISTORY_FILE), exist_ok=True)
@@ -77,6 +80,7 @@ class History:
             "notified": notified,
             "state_changed": state_changed,
             "error": error,
+            "slots": slots or [],
         }
         try:
             with open(CHECK_HISTORY_FILE, "a", encoding="utf-8") as f:

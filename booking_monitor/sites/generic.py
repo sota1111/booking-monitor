@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional, Tuple
 import httpx
 
 from booking_monitor.config import Target
-from booking_monitor.sites.base import BaseSite
+from booking_monitor.sites.base import BaseSite, SlotList
 
 if TYPE_CHECKING:
     from booking_monitor.sites.browser import BrowserManager
@@ -25,7 +25,10 @@ class GenericSite(BaseSite):
 
     async def check(
         self, browser_manager: "Optional[BrowserManager]" = None
-    ) -> Tuple[bool, str]:
+    ) -> Tuple[bool, str, SlotList]:
+        # Generic keyword checks have no per-slot calendar, so ``slots`` is
+        # always empty (range/grid monitoring is tablecheck-only — SOT-833).
+        slots: SlotList = []
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.get(
@@ -41,10 +44,10 @@ class GenericSite(BaseSite):
 
         for kw in self.target.unavailable_keywords:
             if kw in text:
-                return False, f"Found unavailable keyword: {kw}"
+                return False, f"Found unavailable keyword: {kw}", slots
 
         for kw in self.target.available_keywords:
             if kw in text:
-                return True, f"Found available keyword: {kw}"
+                return True, f"Found available keyword: {kw}", slots
 
-        return False, "No matching keywords found"
+        return False, "No matching keywords found", slots

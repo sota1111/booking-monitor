@@ -323,10 +323,25 @@ gcloud scheduler jobs create http booking-monitor-job \
 | `targets[].site_type` | サイト種別（`tablecheck` または `generic`）。新しいサイトの追加方法は [docs/adding-a-site.md](docs/adding-a-site.md) を参照 |
 | `targets[].conditions.adults` | 大人の人数 |
 | `targets[].conditions.children_under_3` | 3歳以下の子供の人数 |
-| `targets[].conditions.days_of_week` | 対象曜日（例: `["Saturday", "Sunday"]`） |
-| `targets[].conditions.time` | 対象時刻（例: `"15:00"`） |
+| `targets[].conditions.days_of_week` | 対象曜日（例: `["Saturday", "Sunday"]`）。`date_range` と併用すると範囲内の対象曜日のみに絞り込む |
+| `targets[].conditions.time` | 対象時刻（例: `"15:00"`）。`time_range` 未指定時のフォールバック |
+| `targets[].conditions.date_range` | 日付範囲。`{"start": "YYYY-MM-DD", "end": "YYYY-MM-DD"}`（範囲監視。任意） |
+| `targets[].conditions.time_range` | 時刻範囲。`{"start": "HH:MM", "end": "HH:MM", "step_minutes": 15}`（範囲監視。任意） |
 | `notification.type` | 通知方法（現在は `discord` のみ） |
 | `notification.webhook_url_env` | Discord Webhook URL の環境変数名 |
+
+### 範囲監視（日付 × 時刻）
+
+`conditions` に `date_range` と `time_range` を指定すると、その範囲を `step_minutes`（既定15分）
+刻みで展開した各スロットの空き/満席を個別に取得します（AND 検索）。
+
+- ダッシュボードに「日付 × 時刻」のグリッドを表示し、各スロットが空き（○）／満席（×）／不明（-）かを一覧できます。
+- 通知は「範囲内のいずれかのスロットに空きが出た」タイミングで送信されます。
+- 範囲監視は `tablecheck` 種別が対象です（`generic` はキーワード判定のみでスロット別取得は行いません）。
+- `date_range`/`time_range` を指定しない既存の設定はそのまま単一状態として動作します（後方互換）。
+
+> 注: 実カレンダーのスロット別空き状況の取得は対象サイトの DOM 構造に依存します。
+> ライブ環境での挙動は実サイトでの確認を推奨します。
 
 ## ログの確認
 - **ローカル:** `logs/booking_monitor.log`
