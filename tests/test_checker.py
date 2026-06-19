@@ -65,26 +65,29 @@ def _patch_client(*, text=None, exc=None):
 @pytest.mark.asyncio
 async def test_generic_available_keyword():
     with _patch_client(text="本日空きあり"):
-        available, summary = await check_target(_target())
+        available, summary, slots = await check_target(_target())
     assert available is True
     assert "空きあり" in summary
+    assert slots == []
 
 
 @pytest.mark.asyncio
 async def test_generic_unavailable_takes_precedence():
     # both keywords present; the unavailable keyword must win
     with _patch_client(text="満席 空きあり"):
-        available, summary = await check_target(_target())
+        available, summary, slots = await check_target(_target())
     assert available is False
     assert "満席" in summary
+    assert slots == []
 
 
 @pytest.mark.asyncio
 async def test_generic_no_match():
     with _patch_client(text="no keywords here"):
-        available, summary = await check_target(_target())
+        available, summary, slots = await check_target(_target())
     assert available is False
     assert summary == "No matching keywords found"
+    assert slots == []
 
 
 @pytest.mark.asyncio

@@ -1,11 +1,13 @@
 import logging
+import re
 from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from booking_monitor.config import Target
 from booking_monitor.sites._resilience import wait_for_required_selector
-from booking_monitor.sites.base import BaseSite
+from booking_monitor.sites.base import BaseSite, SlotList
 from booking_monitor.sites.exceptions import SessionExpiredError, StructureChangeError
 from booking_monitor.sites.session import load_storage_state
+from booking_monitor.slots import Slot, expand_slots
 
 if TYPE_CHECKING:
     from booking_monitor.sites.browser import BrowserManager
@@ -19,7 +21,7 @@ class TableCheckSite(BaseSite):
 
     async def check(
         self, browser_manager: "Optional[BrowserManager]" = None
-    ) -> Tuple[bool, str]:
+    ) -> Tuple[bool, str, SlotList]:
         storage_state = load_storage_state(self.target.session_state_env)
 
         if browser_manager is not None:
@@ -38,7 +40,7 @@ class TableCheckSite(BaseSite):
                 await context.close()
                 await browser.close()
 
-    async def _scrape(self, page) -> Tuple[bool, str]:
+    async def _scrape(self, page) -> Tuple[bool, str, SlotList]:
         from playwright.async_api import TimeoutError as PlaywrightTimeoutError
 
         conditions = self.target.conditions
@@ -46,6 +48,12 @@ class TableCheckSite(BaseSite):
         children = conditions.children_under_3 if conditions else 0
         days_of_week = conditions.days_of_week if conditions else ["Saturday", "Sunday"]
         target_time = conditions.time if conditions else "15:00"
+
+        # Range mode (SOT-833): when a date_range + time_range is configured we
+        # expand the desired (date, time) slots and report per-slot availability
+        # instead of a single status.
+        desired_slots = expand_slots(conditions)
+        range_mode = bool(desired_slots)
 
         try:
             logger.info(f"Opening TableCheck URL: {self.target.url}")
@@ -100,25 +108,35 @@ class TableCheckSite(BaseSite):
             body_element = page.locator("body")
             page_text = await body_element.inner_text()
 
+            # Available labels from the calendar DOM (used by both paths).
+            available_labels = await self._find_available_weekend_slots(
+                page, days_of_week, target_time
+            )
+
+            if range_mode:
+                slots = self._build_range_slots(
+                    desired_slots, page_text, available_labels
+                )
+                any_available = any(s["available"] is True for s in slots)
+                summary = self._range_summary(slots)
+                return any_available, summary, slots
+
+            # --- legacy single-status path (no range configured) ---
             for kw in self.target.unavailable_keywords:
                 if kw in page_text and not any(
                     ak in page_text for ak in self.target.available_keywords
                 ):
-                    return False, f"Unavailable keyword found: {kw}"
+                    return False, f"Unavailable keyword found: {kw}", []
 
             for kw in self.target.available_keywords:
                 if kw in page_text:
-                    return True, f"Available keyword found: {kw}"
+                    return True, f"Available keyword found: {kw}", []
 
-            # Try to find enabled weekend slots in calendar DOM
-            available_dates = await self._find_available_weekend_slots(
-                page, days_of_week, target_time
-            )
-            if available_dates:
-                summary = f"Available slots: {', '.join(available_dates[:3])}"
-                return True, summary
+            if available_labels:
+                summary = f"Available slots: {', '.join(available_labels[:3])}"
+                return True, summary, []
 
-            return False, "No available slots matching conditions"
+            return False, "No available slots matching conditions", []
 
         except (StructureChangeError, SessionExpiredError):
             # Structure change / expired session: propagate as-is (already meaningful),
@@ -155,6 +173,73 @@ class TableCheckSite(BaseSite):
             raise
         except Exception as e:  # noqa: BLE001 — detection must not mask the real check
             logger.debug(f"Login-form detection skipped: {e}")
+
+    def _build_range_slots(
+        self,
+        desired_slots: List[Tuple[str, str]],
+        page_text: str,
+        available_labels: List[str],
+    ) -> SlotList:
+        """Map desired (date, time) slots to availability (best-effort).
+
+        Per-slot availability is derived from the calendar DOM labels when
+        present: a slot is ``available`` when an available label mentions its
+        time (and, when present, its day-of-month); otherwise it is marked
+        unavailable. When no structured labels are found we fall back to the
+        page-level keyword signal, and to ``unknown`` when nothing is decisive.
+
+        NOTE: matching real TableCheck calendar slots requires live DOM
+        verification (Playwright), which is unavailable in this environment, so
+        the DOM mapping is heuristic and should be validated against the live
+        site before relying on per-slot accuracy.
+        """
+        label_blob = " ".join(available_labels)
+        avail_times = set(re.findall(r"\b(\d{1,2}:\d{2})\b", label_blob))
+
+        any_unavailable_kw = any(
+            kw in page_text for kw in self.target.unavailable_keywords
+        )
+        any_available_kw = any(
+            kw in page_text for kw in self.target.available_keywords
+        )
+
+        slots: SlotList = []
+        for date_str, time_str in desired_slots:
+            available: Optional[bool]
+            source: str
+            if available_labels:
+                # Time-based DOM match. Per-date disambiguation from the live
+                # calendar is a follow-up requiring Playwright verification, so
+                # we match on time (the robust signal) and mark non-matching
+                # slots unavailable.
+                matched = time_str in avail_times or time_str in label_blob
+                available = bool(matched)
+                source = "dom"
+            elif any_available_kw and not any_unavailable_kw:
+                available, source = True, "keyword"
+            elif any_unavailable_kw:
+                available, source = False, "keyword"
+            else:
+                available, source = None, "unknown"
+            slots.append(
+                Slot(
+                    date=date_str,
+                    time=time_str,
+                    available=available,
+                    source=source,
+                ).to_dict()
+            )
+        return slots
+
+    @staticmethod
+    def _range_summary(slots: SlotList) -> str:
+        available = [s for s in slots if s["available"] is True]
+        total = len(slots)
+        if not available:
+            return f"範囲内に空きなし (0/{total} スロット)"
+        head = ", ".join(f"{s['date']} {s['time']}" for s in available[:3])
+        more = "" if len(available) <= 3 else f" 他{len(available) - 3}件"
+        return f"空き {len(available)}/{total} スロット: {head}{more}"
 
     async def _find_available_weekend_slots(
         self, page, days_of_week: List[str], target_time: str

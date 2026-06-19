@@ -2,7 +2,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from types import ModuleType
-from typing import Dict, Optional
+from typing import Any, Dict, List, Optional
 
 firestore: ModuleType | None
 try:
@@ -58,6 +58,7 @@ class FirestoreHistory:
         available: bool,
         notified: bool,
         error: Optional[str] = None,
+        slots: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         try:
             doc_ref = self.db.collection(self.collection_name).document(target_name)
@@ -68,6 +69,7 @@ class FirestoreHistory:
                 "notified": notified,
                 "checked_at": datetime.now(timezone.utc).isoformat(),
                 "error": error,
+                "slots": slots or [],
             }
             doc_ref.set(entry)
         except Exception as e:
@@ -83,6 +85,7 @@ class FirestoreHistory:
         notified: bool,
         state_changed: bool,
         error=None,
+        slots: Optional[List[Dict[str, Any]]] = None,
     ) -> None:
         """Appends a time-series check event to Firestore check_history collection."""
         try:
@@ -95,6 +98,7 @@ class FirestoreHistory:
                 "notified": notified,
                 "state_changed": state_changed,
                 "error": error,
+                "slots": slots or [],
             }
             self.db.collection("check_history").add(entry)
         except Exception as e:

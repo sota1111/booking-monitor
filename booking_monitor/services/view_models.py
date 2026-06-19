@@ -1,6 +1,31 @@
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from booking_monitor.history import History
+from booking_monitor.slots import build_slot_grid
+
+
+def _conditions_dict(conditions: Any) -> Optional[Dict[str, Any]]:
+    """Serialize a Conditions object (incl. range fields) for templates/config."""
+    if not conditions:
+        return None
+    data: Dict[str, Any] = {
+        "adults": conditions.adults,
+        "children_under_3": conditions.children_under_3,
+        "days_of_week": conditions.days_of_week,
+        "time": conditions.time,
+    }
+    if getattr(conditions, "date_range", None):
+        data["date_range"] = {
+            "start": conditions.date_range.start,
+            "end": conditions.date_range.end,
+        }
+    if getattr(conditions, "time_range", None):
+        data["time_range"] = {
+            "start": conditions.time_range.start,
+            "end": conditions.time_range.end,
+            "step_minutes": conditions.time_range.step_minutes,
+        }
+    return data
 
 
 def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
@@ -24,14 +49,8 @@ def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any
         else:
             status = "unavailable"
 
-        conditions = None
-        if target.conditions:
-            conditions = {
-                "adults": target.conditions.adults,
-                "children_under_3": target.conditions.children_under_3,
-                "days_of_week": target.conditions.days_of_week,
-                "time": target.conditions.time,
-            }
+        conditions = _conditions_dict(target.conditions)
+        grid = build_slot_grid(state.get("slots") or [])
 
         targets_data.append({
             "name": target.name,
@@ -46,6 +65,7 @@ def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any
             "notified": notified,
             "checked_at": checked_at,
             "error": error,
+            "grid": grid,
         })
 
     # Dashboard summary
@@ -83,14 +103,7 @@ def build_safe_config(config: Any) -> Dict[str, Any]:
     """Builds a safe configuration dictionary (excluding secrets)."""
     targets_data = []
     for target in config.targets:
-        conditions = None
-        if target.conditions:
-            conditions = {
-                "adults": target.conditions.adults,
-                "children_under_3": target.conditions.children_under_3,
-                "days_of_week": target.conditions.days_of_week,
-                "time": target.conditions.time,
-            }
+        conditions = _conditions_dict(target.conditions)
         targets_data.append({
             "name": target.name,
             "site_type": target.site_type,

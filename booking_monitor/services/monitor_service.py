@@ -21,7 +21,7 @@ async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
     try:
         for target in config.targets:
             try:
-                available, summary = await check_target(
+                available, summary, slots = await check_target(
                     target, browser_manager=browser_manager
                 )
                 last_state = history.get_last_state(target.name)
@@ -69,7 +69,9 @@ async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
                 else:
                     is_notified = False
 
-                history.record(target.name, target.url, available, is_notified)
+                history.record(
+                    target.name, target.url, available, is_notified, slots=slots
+                )
                 history.store_check_history(
                     target_name=target.name,
                     url=target.url,
@@ -77,6 +79,7 @@ async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
                     summary=summary,
                     notified=notified_this_turn,
                     state_changed=state_changed,
+                    slots=slots,
                 )
 
                 results.append({
@@ -84,7 +87,8 @@ async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
                     "available": available,
                     "summary": summary,
                     "notified": notified_this_turn or (available and was_notified),
-                    "state_changed": state_changed
+                    "state_changed": state_changed,
+                    "slots": slots,
                 })
             except Exception as e:
                 logger.error(f"Error checking target {target.name}: {e}")
