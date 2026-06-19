@@ -7,6 +7,7 @@ from booking_monitor.config import Config
 from booking_monitor.history import History
 from booking_monitor.notifier import Notifier
 from booking_monitor.sites.browser import BrowserManager
+from booking_monitor.sites.exceptions import SessionExpiredError
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,9 @@ async def _run_loop(config: Config) -> None:
     history = History()
     notifier = Notifier(config.notification)
     last_check: dict = {}
+    # Tracks targets already notified about an expired session, so we notify on
+    # transition only (once per expiry) instead of every interval. Reset on success.
+    expired_notified: dict = {}
     browser_manager = BrowserManager()
 
     logger.info("Scheduler started")
@@ -52,9 +56,27 @@ async def _run_loop(config: Config) -> None:
                             logger.info(f"Skipping duplicate notification for: {target.name}")
 
                     history.record(target.name, target.url, available, notified)
+                    expired_notified.pop(target.name, None)
                     logger.info(
                         f"Result for {target.name}: available={available}, summary={summary}"
                     )
+
+                except SessionExpiredError as e:
+                    logger.error(f"Session expired for {target.name}: {e}")
+                    # Notify the human once per expiry (on transition), not every interval.
+                    if not expired_notified.get(target.name, False):
+                        try:
+                            notifier.send_session_expired(target)
+                            logger.info(
+                                f"Session-expired notification sent for: {target.name}"
+                            )
+                        except Exception as ne:
+                            logger.error(
+                                f"Failed to send session-expired notification "
+                                f"for {target.name}: {ne}"
+                            )
+                        expired_notified[target.name] = True
+                    history.record(target.name, target.url, False, False, error=str(e))
 
                 except Exception as e:
                     logger.error(f"Error checking {target.name}: {e}")

@@ -34,9 +34,11 @@ class BrowserManager:
         return self._browser
 
     @asynccontextmanager
-    async def new_page(self) -> AsyncIterator[Page]:
+    async def new_page(
+        self, storage_state: Optional[dict] = None
+    ) -> AsyncIterator[Page]:
         browser = await self._ensure_browser()
-        context = await browser.new_context()
+        context = await browser.new_context(storage_state=storage_state)
         try:
             page = await context.new_page()
             yield page
