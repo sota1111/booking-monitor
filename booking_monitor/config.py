@@ -22,6 +22,7 @@ class Target:
     notify: bool
     site_type: str = "generic"
     conditions: Optional[Conditions] = None
+    session_state_env: str = ""
 
 
 @dataclass
@@ -64,6 +65,7 @@ def load_config(path: str) -> Config:
                 notify=t.get("notify", True),
                 site_type=t.get("site_type", "generic"),
                 conditions=conditions,
+                session_state_env=t.get("session_state_env", ""),
             )
         )
 

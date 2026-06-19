@@ -8,6 +8,7 @@
       "unavailable_keywords": ["満席", "空きなし", "予約不可"],
       "notify": true,
       "site_type": "tablecheck",
+      "session_state_env": "BOOKING_SESSION_STATE",
       "conditions": {
         "adults": 2,
         "children_under_3": 1,

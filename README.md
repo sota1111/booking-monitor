@@ -67,6 +67,40 @@ python app.py
 ```
 ※Firestore が設定されていない場合、ローカルの JSON ファイル（`logs/history.jsonl` など）に履歴を保存して動作します。
 
+## ログイン必須の監視対象（案B: 手動セッション投入）
+
+監視対象の予約サイトがログイン必須（例: Google SSO の TableCheck）の場合、未ログインのままだとログイン画面に飛ばされて予約状況を判定できません。Google SSO は自動ログイン（headless でのID/PW投入）を意図的にブロックするため、本アプリでは **手動でエクスポートしたログインセッション（Playwright `storage_state`）を注入する方式（案B）** に対応しています。Google のログイン処理自体は自動化しません。
+
+### 仕組み
+- 人が普段のブラウザで対象サイトに一度ログインし、`storage_state`（cookie + localStorage の JSON）をエクスポートします。
+- その JSON を環境変数（Secret Manager 推奨）に格納し、対象の `session_state_env` にその**環境変数名**を指定します。
+- 各チェックは `browser.new_context(storage_state=...)` で認証済みコンテキストを再現して巡回します。保存されるのは対象サイトのセッション cookie のみで、Google のパスワードや認証情報は保存しません。
+- `session_state_env` が未設定の対象は従来どおり未認証で動作します（後方互換）。
+
+### セットアップ手順
+1. 対象サイトに手動ログイン後、`storage_state` をエクスポートします。
+   ```python
+   # Playwright で対象サイトにログイン後:
+   context.storage_state(path="state.json")
+   ```
+   （Cookie-Editor 等のブラウザ拡張で対象ドメインの cookie を JSON エクスポートしても可）
+2. エクスポートした JSON を環境変数 / Secret に登録します（例: `BOOKING_SESSION_STATE`）。
+   ```bash
+   # ローカル（.env）
+   BOOKING_SESSION_STATE='{"cookies":[...],"origins":[...]}'
+
+   # Cloud Run（Secret Manager）
+   gcloud secrets create booking-session-state --data-file=state.json
+   ```
+3. `config.json` の対象に `session_state_env` を追加します。
+   ```json
+   "session_state_env": "BOOKING_SESSION_STATE"
+   ```
+4. monitor を再起動 / 再デプロイして新しいセッションを読み込ませます。
+
+### セッション失効時
+cookie/サーバ側セッションには有効期限があり（サイト依存で数日〜数週間）、失効すると未ログイン状態に戻ります。失効を検知すると（認証チェックがログイン画面へリダイレクトされると）、monitor は **Discord（既存の通知チャネル）に再エクスポート依頼を通知**し、その対象の監視を一時的に認証エラーとして記録します。通知を受けたら手順1〜4を再実行してセッションを更新してください。通知は失効ごとに1回だけ送信されます（毎チェックでは送りません）。
+
 ## 認証設定
 
 このアプリは Firebase Authentication を使用したログイン認証が必要です。`.env` に以下の変数を設定してください。

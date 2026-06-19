@@ -4,7 +4,8 @@ from typing import TYPE_CHECKING, List, Optional, Tuple
 from booking_monitor.config import Target
 from booking_monitor.sites._resilience import wait_for_required_selector
 from booking_monitor.sites.base import BaseSite
-from booking_monitor.sites.exceptions import StructureChangeError
+from booking_monitor.sites.exceptions import SessionExpiredError, StructureChangeError
+from booking_monitor.sites.session import load_storage_state
 
 if TYPE_CHECKING:
     from booking_monitor.sites.browser import BrowserManager
@@ -19,18 +20,22 @@ class TableCheckSite(BaseSite):
     async def check(
         self, browser_manager: "Optional[BrowserManager]" = None
     ) -> Tuple[bool, str]:
+        storage_state = load_storage_state(self.target.session_state_env)
+
         if browser_manager is not None:
-            async with browser_manager.new_page() as page:
+            async with browser_manager.new_page(storage_state=storage_state) as page:
                 return await self._scrape(page)
 
         from playwright.async_api import async_playwright
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+            context = await browser.new_context(storage_state=storage_state)
             try:
+                page = await context.new_page()
                 return await self._scrape(page)
             finally:
+                await context.close()
                 await browser.close()
 
     async def _scrape(self, page) -> Tuple[bool, str]:
@@ -47,6 +52,13 @@ class TableCheckSite(BaseSite):
             await page.goto(
                 self.target.url, timeout=30000, wait_until="networkidle"
             )
+
+            # When a session is expected (案B: injected storage_state), detect an
+            # expired session: an authenticated check that gets bounced to a login
+            # page (Google SSO or the site's own sign-in). Raise so it is reported
+            # and a re-export can be requested, distinct from "no availability".
+            if self.target.session_state_env:
+                await self._raise_if_login_redirect(page)
 
             # Try to set adult count via dropdown
             try:
@@ -108,14 +120,41 @@ class TableCheckSite(BaseSite):
 
             return False, "No available slots matching conditions"
 
-        except StructureChangeError:
-            # Site structure change: propagate as-is (already logged with context),
-            # keeping it distinct from a generic failure or "no availability".
+        except (StructureChangeError, SessionExpiredError):
+            # Structure change / expired session: propagate as-is (already meaningful),
+            # keeping them distinct from a generic failure or "no availability".
             raise
         except PlaywrightTimeoutError as e:
             raise RuntimeError(f"Playwright timeout: {e}")
         except Exception as e:
             raise RuntimeError(f"TableCheck check failed: {e}")
+
+    async def _raise_if_login_redirect(self, page) -> None:
+        """Raise SessionExpiredError if the page landed on a login/sign-in screen."""
+        current_url = (page.url or "").lower()
+        login_markers = (
+            "accounts.google.com",
+            "/login",
+            "/signin",
+            "/sign_in",
+            "/users/sign_in",
+        )
+        if any(marker in current_url for marker in login_markers):
+            logger.warning(
+                "Session appears expired (redirected to login URL): %s", page.url
+            )
+            raise SessionExpiredError(url=self.target.url)
+
+        try:
+            if await page.locator("input[type='password']").count() > 0:
+                logger.warning(
+                    "Session appears expired (login form detected) at %s", page.url
+                )
+                raise SessionExpiredError(url=self.target.url)
+        except SessionExpiredError:
+            raise
+        except Exception as e:  # noqa: BLE001 — detection must not mask the real check
+            logger.debug(f"Login-form detection skipped: {e}")
 
     async def _find_available_weekend_slots(
         self, page, days_of_week: List[str], target_time: str
