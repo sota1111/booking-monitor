@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional, Tuple
 
 from booking_monitor.history import History
-from booking_monitor.slots import build_slot_grid
+from booking_monitor.notifier import is_snoozed
+from booking_monitor.slots import build_calendar_overview, build_slot_grid
 
 
 def _conditions_dict(conditions: Any) -> Optional[Dict[str, Any]]:
@@ -99,6 +100,19 @@ def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any
 
     return targets_data, summary
 
+
+def build_calendar_view(config: Any, history: History) -> Dict[str, Any]:
+    """Build the availability calendar overview (day×time across all targets).
+
+    Reuses :func:`build_status_view` to obtain per-target slot grids, then aggregates
+    them via :func:`build_calendar_overview`. Returns ``{overview, summary}`` where
+    ``overview`` is ``None`` when no target uses range-based monitoring (empty state).
+    """
+    targets_data, summary = build_status_view(config, history)
+    overview = build_calendar_overview(targets_data)
+    return {"overview": overview, "summary": summary}
+
+
 def build_safe_config(config: Any) -> Dict[str, Any]:
     """Builds a safe configuration dictionary (excluding secrets)."""
     targets_data = []
@@ -115,10 +129,23 @@ def build_safe_config(config: Any) -> Dict[str, Any]:
             "conditions": conditions,
         })
 
+    notification = config.notification
+    channels = [
+        {
+            "type": ch.type,
+            "webhook_url_env": ch.webhook_url_env,
+            "enabled": ch.enabled,
+        }
+        for ch in getattr(notification, "channels", []) or []
+    ]
+
     return {
         "targets": targets_data,
         "notification": {
-            "type": config.notification.type,
-            "webhook_url_env": config.notification.webhook_url_env,
+            "type": notification.type,
+            "webhook_url_env": notification.webhook_url_env,
+            "channels": channels,
+            "snooze_until": getattr(notification, "snooze_until", None),
+            "snoozed": is_snoozed(getattr(notification, "snooze_until", None)),
         },
     }
