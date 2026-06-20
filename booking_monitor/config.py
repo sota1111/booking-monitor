@@ -49,9 +49,30 @@ class Target:
 
 
 @dataclass
+class NotificationChannel:
+    """A single notification destination (e.g. a Discord webhook).
+
+    ``webhook_url_env`` names the environment variable holding the secret URL (the
+    value itself is never stored in config). ``enabled`` lets the human pause one
+    channel without removing it.
+    """
+
+    type: str
+    webhook_url_env: str = ""
+    enabled: bool = True
+
+
+@dataclass
 class Notification:
     type: str
     webhook_url_env: str = ""
+    # Multiple notification destinations (SOT-886). When non-empty, notifications are
+    # sent to every enabled channel. When empty, the legacy single
+    # ``type``/``webhook_url_env`` path is used (backward compatible).
+    channels: List[NotificationChannel] = field(default_factory=list)
+    # Snooze / pause (SOT-886): ISO 8601 UTC timestamp. While ``now`` is before this
+    # time, notifications are suppressed. ``None`` (or a past time) means active.
+    snooze_until: Optional[str] = None
 
 
 @dataclass
@@ -109,9 +130,20 @@ def load_config(path: str) -> Config:
         )
 
     notif_data = data.get("notification", {})
+    channels = []
+    for ch in notif_data.get("channels", []) or []:
+        channels.append(
+            NotificationChannel(
+                type=ch.get("type", "discord"),
+                webhook_url_env=ch.get("webhook_url_env", ""),
+                enabled=ch.get("enabled", True),
+            )
+        )
     notification = Notification(
         type=notif_data.get("type", "discord"),
         webhook_url_env=notif_data.get("webhook_url_env", "DISCORD_WEBHOOK_URL"),
+        channels=channels,
+        snooze_until=notif_data.get("snooze_until"),
     )
 
     if not targets:

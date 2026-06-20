@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>カレンダー - Booking Monitor</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #333; }
+    nav {
+      background: linear-gradient(90deg, #1f2d3d, #2c3e50); color: white; padding: 0.7rem 1.2rem;
+      display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: 0.5rem;
+      position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    }
+    nav .brand .brand-mark { display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 6px; margin-right: 6px; vertical-align: middle;
+      background: linear-gradient(135deg, #3b82f6, #14b8a6); }
+    nav .brand { font-weight: bold; font-size: 1.1rem; white-space: nowrap; flex-shrink: 0; }
+    nav .nav-links { display: flex; gap: 0.8rem; align-items: center; flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
+    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; white-space: nowrap; padding: 0.2rem 0; }
+    nav .nav-links a:hover { color: white; }
+    nav .nav-links a.active { color: white; font-weight: 600; }
+    nav form { margin: 0; flex-shrink: 0; }
+    nav form button {
+      background: none; border: 1px solid rgba(255,255,255,0.5);
+      color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
+    }
+    main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
+    .alert { border-radius: 6px; padding: 0.8rem 1rem; margin-bottom: 0.8rem; }
+    .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
+    .card { background: white; border: 1px solid #e8eaed; border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 2px rgba(16,24,40,0.06); }
+    .card h2 { margin: 0 0 1rem; font-size: 1rem; color: #555; font-weight: 600; }
+    .meta { font-size: 0.85rem; color: #777; margin-bottom: 0.6rem; }
+    .overflow-x { overflow-x: auto; }
+    table.slot-grid { border-collapse: collapse; font-size: 0.78rem; }
+    table.slot-grid th, table.slot-grid td {
+      border: 1px solid #e0e0e0; padding: 0.25rem 0.45rem; text-align: center; white-space: nowrap;
+    }
+    table.slot-grid th { background: #eceff1; font-weight: 600; }
+    table.slot-grid th.row-head { text-align: right; background: #f5f5f5; }
+    .slot-cell { width: 1.8rem; height: 1.4rem; }
+    .slot-available { background: #66bb6a; color: #fff; font-weight: 600; }
+    .slot-unavailable { background: #e0e0e0; color: #999; }
+    .slot-unknown { background: #fff; color: #ccc; }
+    .grid-legend { font-size: 0.78rem; color: #666; margin-top: 0.6rem; }
+    .grid-legend span { margin-right: 1rem; }
+    .legend-box { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; vertical-align: middle; margin-right: 0.25rem; }
+    .empty { color: #888; font-size: 0.9rem; padding: 0.5rem 0; }
+    @media (max-width: 600px) {
+      main { padding: 0.6rem; }
+      /* The day×time matrix keeps its own horizontal scroll on mobile. */
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <span class="brand"><span class="brand-mark">📅</span>Booking Monitor</span>
+    <div class="nav-links">
+      <a href="/">ダッシュボード</a>
+      <a href="/calendar" class="active">カレンダー</a>
+      <a href="/history">監視履歴</a>
+      <a href="/notification-history">通知履歴</a>
+      <a href="/config">設定確認</a>
+    </div>
+    <form method="post" action="/logout">
+      <button type="submit">ログアウト</button>
+    </form>
+  </nav>
+
+  <main>
+    <h1 style="font-size:1.3rem;margin:0.2rem 0 1rem;">空き状況カレンダー</h1>
+
+    {% if error %}
+    <div class="alert alert-error">設定の読み込みに失敗しました: {{ error }}</div>
+    {% endif %}
+
+    <div class="card">
+      <h2>日 × 時間 空き状況（全対象を集約）</h2>
+      {% if overview %}
+      <div class="meta">
+        対象 {{ overview.target_count }} 件 / 空きスロット {{ overview.available_count }} 件
+        （いずれかの対象に空きがあるセルを「空きあり」と表示）
+      </div>
+      <div class="overflow-x">
+        <table class="slot-grid">
+          <thead>
+            <tr>
+              <th class="row-head">日付＼時刻</th>
+              {% for time in overview.times %}<th>{{ time }}</th>{% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for date in overview.dates %}
+            <tr>
+              <th class="row-head">{{ date }}</th>
+              {% for time in overview.times %}
+              {% set cell = overview.cells[date][time] if overview.cells[date] and overview.cells[date][time] else None %}
+              {% if cell and cell.state == 'available' %}
+              <td class="slot-cell slot-available" title="{{ date }} {{ time }} 空きあり（{{ cell.available_targets }}/{{ cell.total_targets }}対象）">{{ cell.available_targets }}</td>
+              {% elif cell and cell.state == 'unavailable' %}
+              <td class="slot-cell slot-unavailable" title="{{ date }} {{ time }} 満席">×</td>
+              {% else %}
+              <td class="slot-cell slot-unknown" title="{{ date }} {{ time }} 不明/対象なし">-</td>
+              {% endif %}
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="grid-legend">
+        <span><span class="legend-box slot-available"></span>空きあり（数字=空き対象数）</span>
+        <span><span class="legend-box slot-unavailable"></span>満席</span>
+        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/対象なし</span>
+      </div>
+      {% else %}
+      <div class="empty">
+        日×時間レンジ監視（date_range / time_range）が設定された対象がまだありません。
+        設定確認ページで対象に範囲条件を追加すると、ここにカレンダーが表示されます。
+      </div>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

@@ -20,6 +20,11 @@
   ],
   "notification": {
     "type": "discord",
-    "webhook_url_env": "DISCORD_WEBHOOK_URL"
+    "webhook_url_env": "DISCORD_WEBHOOK_URL",
+    "channels": [
+      { "type": "discord", "webhook_url_env": "DISCORD_WEBHOOK_URL", "enabled": true },
+      { "type": "discord", "webhook_url_env": "DISCORD_WEBHOOK_URL_SECONDARY", "enabled": false }
+    ],
+    "snooze_until": null
   }
 }

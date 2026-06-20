@@ -183,3 +183,70 @@ def build_slot_grid(slots: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
         "available_count": available_count,
         "total": len(slots),
     }
+
+
+def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    """Aggregate every target's per-slot grid into one day×time calendar overview.
+
+    ``targets`` is the list of target view dicts (each with a ``name`` and a ``grid``
+    produced by :func:`build_slot_grid`, or ``None``). The union of all dates and times
+    across targets that have a grid forms the calendar axes. For each ``(date, time)``
+    cell, availability is aggregated across the targets that monitor it:
+
+    - ``"available"`` if ANY target is open there (``available_targets`` counts how many);
+    - ``"unavailable"`` if at least one target reports the cell but none is open;
+    - ``"unknown"`` if every reporting target is unknown.
+
+    Returns ``{dates, times, cells, available_count, target_count}`` where ``cells`` is
+    ``{date: {time: {state, available_targets, total_targets}}}``. Returns ``None`` when
+    no target has a grid, so the page can render an empty state.
+    """
+    grids = [t["grid"] for t in targets if t.get("grid")]
+    if not grids:
+        return None
+
+    dates_set: set[str] = set()
+    times_set: set[str] = set()
+    # (date, time) -> [available_targets, total_targets, known_targets]
+    tally: Dict[Tuple[str, str], List[int]] = {}
+
+    for grid in grids:
+        cells = grid.get("cells", {})
+        for d, row in cells.items():
+            dates_set.add(d)
+            for t, state in row.items():
+                times_set.add(t)
+                entry = tally.setdefault((d, t), [0, 0, 0])
+                entry[1] += 1  # total targets reporting this cell
+                if state == "available":
+                    entry[0] += 1
+                    entry[2] += 1
+                elif state == "unavailable":
+                    entry[2] += 1
+
+    dates = sorted(dates_set)
+    times = sorted(times_set)
+
+    out_cells: Dict[str, Dict[str, Dict[str, Any]]] = {}
+    available_count = 0
+    for (d, t), (avail, total, known) in tally.items():
+        if avail > 0:
+            state = "available"
+            available_count += 1
+        elif known > 0:
+            state = "unavailable"
+        else:
+            state = "unknown"
+        out_cells.setdefault(d, {})[t] = {
+            "state": state,
+            "available_targets": avail,
+            "total_targets": total,
+        }
+
+    return {
+        "dates": dates,
+        "times": times,
+        "cells": out_cells,
+        "available_count": available_count,
+        "target_count": len(grids),
+    }

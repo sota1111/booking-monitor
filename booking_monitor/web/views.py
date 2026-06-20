@@ -7,7 +7,11 @@ from fastapi.templating import Jinja2Templates
 from booking_monitor.config import validate_config
 from booking_monitor.services.config_loader import load_active_config
 from booking_monitor.services.history_factory import get_history
-from booking_monitor.services.view_models import build_safe_config, build_status_view
+from booking_monitor.services.view_models import (
+    build_calendar_view,
+    build_safe_config,
+    build_status_view,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="", tags=["views"])
@@ -52,6 +56,36 @@ async def status_page(request: Request):
             "targets": targets_data,
             "summary": summary,
             "config_warnings": config_warnings,
+        },
+    )
+
+
+@router.get("/calendar", name="calendar_page")
+async def calendar_page(request: Request):
+    auth_check = require_login(request)
+    if isinstance(auth_check, RedirectResponse):
+        return auth_check
+
+    try:
+        config = load_active_config()
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        return templates.TemplateResponse(
+            request=request,
+            name="calendar.html",
+            context={"error": str(e), "overview": None, "summary": {}},
+        )
+
+    history = get_history()
+    calendar = build_calendar_view(config, history)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="calendar.html",
+        context={
+            "overview": calendar["overview"],
+            "summary": calendar["summary"],
+            "error": None,
         },
     )
 

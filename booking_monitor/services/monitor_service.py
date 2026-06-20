@@ -35,7 +35,19 @@ async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
                 is_notified = was_notified
                 if available:
                     if state_changed:
-                        if target.notify:
+                        if target.notify and notifier.is_snoozed():
+                            # Notifications paused (snooze): availability found but muted.
+                            logger.info(
+                                f"Notifications snoozed; skipping {target.name}"
+                            )
+                            history.store_notification_history(
+                                target_name=target.name,
+                                url=target.url,
+                                summary=summary,
+                                success=False,
+                                skipped=True,
+                            )
+                        elif target.notify:
                             try:
                                 notifier.send(target, summary)
                                 is_notified = True

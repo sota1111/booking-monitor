@@ -50,6 +50,7 @@
     <span class="brand"><span class="brand-mark">📅</span>Booking Monitor</span>
     <div class="nav-links">
       <a href="/">ダッシュボード</a>
+      <a href="/calendar">カレンダー</a>
       <a href="/history">監視履歴</a>
       <a href="/notification-history">通知履歴</a>
       <a href="/config">設定確認</a>
@@ -78,7 +79,26 @@
       <dl>
         <dt>通知タイプ</dt><dd>{{ config.notification.type }}</dd>
         <dt>Webhook 環境変数名</dt><dd><code>{{ config.notification.webhook_url_env }}</code>（値は非表示）</dd>
+        <dt>スヌーズ（一時停止）</dt>
+        <dd>
+          {% if config.notification.snoozed %}
+          <span style="color:#c62828;font-weight:600">一時停止中</span>（{{ config.notification.snooze_until }} まで）
+          {% elif config.notification.snooze_until %}
+          稼働中（過去のスヌーズ: {{ config.notification.snooze_until }}）
+          {% else %}
+          稼働中
+          {% endif %}
+        </dd>
       </dl>
+      {% if config.notification.channels %}
+      <h3 style="font-size:0.9rem;color:#555;margin:0.8rem 0 0.4rem;">通知チャネル ({{ config.notification.channels | length }} 件)</h3>
+      <dl>
+        {% for ch in config.notification.channels %}
+        <dt>{{ ch.type }}{% if not ch.enabled %} <span style="color:#aaa">(無効)</span>{% endif %}</dt>
+        <dd><code>{{ ch.webhook_url_env }}</code>（値は非表示）</dd>
+        {% endfor %}
+      </dl>
+      {% endif %}
     </div>
 
     <div class="card">
