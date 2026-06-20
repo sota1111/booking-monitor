@@ -36,7 +36,26 @@
     .badge-skip { background: #fff8e1; color: #f57f17; }
     .badge-fail { background: #ffebee; color: #c62828; }
     .overflow-x { overflow-x: auto; }
-    @media (max-width: 600px) { main { padding: 0.6rem; } }
+    @media (max-width: 600px) {
+      main { padding: 0.6rem; }
+      /* Stacked-card tables: on mobile, collapse each row into a vertical
+         "label: value" card so no horizontal scrolling is required. */
+      .overflow-x { overflow-x: visible; }
+      table.responsive-table, table.responsive-table tbody { display: block; width: 100%; }
+      table.responsive-table thead { display: none; }
+      table.responsive-table tr { display: block; padding: 0.5rem 0; }
+      table.responsive-table tr + tr { border-top: 2px solid #e0e0e0; }
+      table.responsive-table td {
+        display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem;
+        padding: 0.25rem 0.2rem; text-align: right; max-width: none !important; border: 0;
+      }
+      table.responsive-table td::before {
+        content: attr(data-label); flex: 0 0 auto; font-weight: 600;
+        color: #6b7280; text-align: left; white-space: nowrap;
+      }
+      table.responsive-table td[data-label=""]::before { content: none; }
+      table.responsive-table td:empty { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -60,7 +79,7 @@
       <p style="color:#888">まだ通知履歴がありません。</p>
       {% else %}
       <div class="overflow-x">
-        <table>
+        <table class="responsive-table">
           <thead>
             <tr>
               <th>通知日時</th>
@@ -73,9 +92,9 @@
           <tbody>
           {% for r in records %}
           <tr>
-            <td style="white-space:nowrap" class="iso-ts" data-iso="{{ r.sent_at }}">{{ r.sent_at }}</td>
-            <td>{{ r.target_name }}</td>
-            <td>
+            <td data-label="通知日時" style="white-space:nowrap" class="iso-ts" data-iso="{{ r.sent_at }}">{{ r.sent_at }}</td>
+            <td data-label="対象店舗">{{ r.target_name }}</td>
+            <td data-label="結果">
               {% if r.skipped %}
               <span class="badge badge-skip">通知スキップ</span>
               {% elif r.success %}
@@ -84,8 +103,8 @@
               <span class="badge badge-fail">送信失敗</span>
               {% endif %}
             </td>
-            <td style="font-size:0.82rem;max-width:200px;word-break:break-all">{{ r.summary or '-' }}</td>
-            <td style="font-size:0.82rem;color:#c62828;max-width:180px;word-break:break-all">
+            <td data-label="サマリー" style="font-size:0.82rem;max-width:200px;word-break:break-all">{{ r.summary or '-' }}</td>
+            <td data-label="エラー概要" style="font-size:0.82rem;color:#c62828;max-width:180px;word-break:break-all">
               {% if r.error %}{{ r.error | truncate(100) }}{% else %}-{% endif %}
             </td>
           </tr>

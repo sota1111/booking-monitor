@@ -93,6 +93,25 @@
       main { padding: 0.6rem; }
       .summary-grid { grid-template-columns: repeat(3, 1fr); }
       .stat-box .stat-value { font-size: 1.3rem; }
+      /* Stacked-card tables: on mobile, collapse each row into a vertical
+         "label: value" card so no horizontal scrolling is required.
+         (The slot-grid matrix below keeps its own horizontal scroll.) */
+      .overflow-x:has(table.responsive-table) { overflow-x: visible; }
+      table.responsive-table, table.responsive-table tbody { display: block; width: 100%; }
+      table.responsive-table thead { display: none; }
+      table.responsive-table tr { display: block; padding: 0.5rem 0; }
+      table.responsive-table tr + tr { border-top: 2px solid #e0e0e0; }
+      table.responsive-table td {
+        display: flex; justify-content: space-between; align-items: baseline; gap: 0.75rem;
+        padding: 0.25rem 0.2rem; text-align: right; max-width: none !important; border: 0;
+      }
+      table.responsive-table td::before {
+        content: attr(data-label); flex: 0 0 auto; font-weight: 600;
+        color: #6b7280; text-align: left; white-space: nowrap;
+      }
+      table.responsive-table td[data-label=""]::before { content: none; }
+      table.responsive-table td:empty { display: none; }
+      .error-detail { max-width: none; }
     }
   </style>
 </head>
@@ -171,7 +190,7 @@
       <p style="color:#888">監視対象が設定されていません。</p>
       {% else %}
       <div class="overflow-x">
-        <table>
+        <table class="responsive-table">
           <thead>
             <tr>
               <th>店舗名</th>
@@ -189,13 +208,13 @@
           <tbody>
           {% for t in targets %}
           <tr {% if t.status == 'available' %}class="highlight"{% endif %}>
-            <td>
+            <td data-label="店舗名">
               <a href="{{ t.url }}" target="_blank" rel="noopener" style="color:#1565c0;text-decoration:none">
                 {{ t.name }}
               </a>
             </td>
-            <td>{{ t.site_type }}</td>
-            <td>
+            <td data-label="種別">{{ t.site_type }}</td>
+            <td data-label="曜日">
               {% if t.conditions and t.conditions.days_of_week %}
               {{ t.conditions.days_of_week | join(', ') }}
               {% else %}-{% endif %}
@@ -203,26 +222,26 @@
               <span class="range-note">{{ t.conditions.date_range.start }} 〜 {{ t.conditions.date_range.end }}</span>
               {% endif %}
             </td>
-            <td>
+            <td data-label="時刻">
               {% if t.conditions and t.conditions.time %}{{ t.conditions.time }}{% else %}-{% endif %}
               {% if t.conditions and t.conditions.time_range %}
               <span class="range-note">{{ t.conditions.time_range.start }}〜{{ t.conditions.time_range.end }} / {{ t.conditions.time_range.step_minutes }}分</span>
               {% endif %}
             </td>
-            <td>
+            <td data-label="大人">
               {% if t.conditions %}{{ t.conditions.adults }}名{% else %}-{% endif %}
             </td>
-            <td>
+            <td data-label="子ども">
               {% if t.conditions %}{{ t.conditions.children_under_3 }}名{% else %}-{% endif %}
             </td>
-            <td>
+            <td data-label="通知">
               {% if t.notify %}
               <span class="notify-on">ON</span>
               {% else %}
               <span class="notify-off">OFF</span>
               {% endif %}
             </td>
-            <td>
+            <td data-label="状態">
               {% if t.status == 'available' and t.notified %}
               <span class="badge badge-available-notified">空きあり 通知済</span>
               {% elif t.status == 'available' %}
@@ -237,8 +256,8 @@
               <span class="badge badge-unchecked">{{ t.status }}</span>
               {% endif %}
             </td>
-            <td class="checked-at" data-iso="{{ t.checked_at or '' }}">{{ t.checked_at or '-' }}</td>
-            <td>
+            <td data-label="最終確認" class="checked-at" data-iso="{{ t.checked_at or '' }}">{{ t.checked_at or '-' }}</td>
+            <td data-label="エラー">
               {% if t.error %}
               <span class="error-detail">{{ t.error | truncate(80) }}</span>
               {% else %}-{% endif %}
