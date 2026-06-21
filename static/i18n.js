@@ -110,9 +110,6 @@
     "汎用 HTTP キーワードチェック": "Generic HTTP keyword check",
     "空きありキーワード": "Available keywords",
     "満席キーワード": "Full keywords",
-    "監視対象 (": "Monitored targets (",
-    "通知チャネル (": "Notification channels (",
-    " 件)": " items)",
 
     // --- Login page ---
     "ログインして監視を続ける": "Log in to continue monitoring",
@@ -139,6 +136,29 @@
     "ログイン - Booking Monitor": "Login - Booking Monitor"
   };
 
+  // Count-bearing labels: the rendered text node mixes static text with a
+  // Jinja-interpolated count (e.g. "通知チャネル (2 件)"), so it never matches a
+  // whole-node DICT key. These patterns translate them while preserving the
+  // dynamic numbers. Matched against norm()'d node text; tried only after the
+  // whole-node DICT lookup misses.
+  var COUNT_PATTERNS = [
+    {
+      re: /^通知チャネル \((\d+) 件\)$/,
+      en: function (m) { return "Notification channels (" + m[1] + " items)"; }
+    },
+    {
+      re: /^監視対象 \((\d+) 件\)$/,
+      en: function (m) { return "Monitored targets (" + m[1] + " items)"; }
+    },
+    {
+      re: /^対象 (\d+) 件 \/ 空きスロット (\d+) 件 （いずれかの対象に空きがあるセルを「空きあり」と表示）$/,
+      en: function (m) {
+        return "Targets: " + m[1] + " / Available slots: " + m[2] +
+          " (cells where any target has availability are shown as \"Available\")";
+      }
+    }
+  ];
+
   function norm(s) {
     return s.trim().replace(/\s+/g, " ");
   }
@@ -159,7 +179,15 @@
       node.nodeValue = orig;
       return;
     }
-    var en = DICT[norm(orig)];
+    var key = norm(orig);
+    var en = DICT[key];
+    if (en === undefined) {
+      // Fall back to count-aware patterns for labels with interpolated numbers.
+      for (var i = 0; i < COUNT_PATTERNS.length; i++) {
+        var m = key.match(COUNT_PATTERNS[i].re);
+        if (m) { en = COUNT_PATTERNS[i].en(m); break; }
+      }
+    }
     if (en === undefined) return;
     var lead = orig.match(/^\s*/)[0];
     var trail = orig.match(/\s*$/)[0];
