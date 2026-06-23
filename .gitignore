@@ -1,5 +1,6 @@
 .env
 config.json
+config.sample.json
 __pycache__/
 *.pyc
 *.pyo
