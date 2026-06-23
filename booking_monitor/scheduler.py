@@ -6,7 +6,7 @@ from booking_monitor.checker import check_target
 from booking_monitor.config import Config
 from booking_monitor.history import History
 from booking_monitor.notifier import Notifier
-from booking_monitor.sites.browser import BrowserManager
+from booking_monitor.sites.browser import browser_manager_from_env
 from booking_monitor.sites.exceptions import SessionExpiredError
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,7 @@ async def _run_loop(config: Config) -> None:
     # Tracks targets already notified about an expired session, so we notify on
     # transition only (once per expiry) instead of every interval. Reset on success.
     expired_notified: dict = {}
-    browser_manager = BrowserManager()
+    browser_manager = browser_manager_from_env()
 
     logger.info("Scheduler started")
 

@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from booking_monitor.checker import check_target
 from booking_monitor.history import History
 from booking_monitor.notifier import Notifier
-from booking_monitor.sites.browser import BrowserManager
+from booking_monitor.sites.browser import browser_manager_from_env
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ async def run_checks(config: Any, history: History) -> List[Dict[str, Any]]:
     """
     notifier = Notifier(config.notification)
     results: List[Dict[str, Any]] = []
-    browser_manager = BrowserManager()
+    browser_manager = browser_manager_from_env()
 
     try:
         for target in config.targets:

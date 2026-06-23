@@ -102,6 +102,42 @@ python app.py
 ### セッション失効時
 cookie/サーバ側セッションには有効期限があり（サイト依存で数日〜数週間）、失効すると未ログイン状態に戻ります。失効を検知すると（認証チェックがログイン画面へリダイレクトされると）、monitor は **Discord（既存の通知チャネル）に再エクスポート依頼を通知**し、その対象の監視を一時的に認証エラーとして記録します。通知を受けたら手順1〜4を再実行してセッションを更新してください。通知は失効ごとに1回だけ送信されます（毎チェックでは送りません）。
 
+## ローカルPCで収集する（方式①: 永続プロファイル）
+
+案B（`storage_state` 手動エクスポート）は数日〜数週間で失効し再エクスポートが必要です。**ログイン状態を保ったままローカルPCのブラウザで巡回したい**場合は、Playwright の**永続プロファイル**（`launch_persistent_context`）を使う方式①が適しています。一度手動ログインすればプロファイルディレクトリにセッションが永続化され、**再エクスポート不要**で以降のチェックを同じログイン状態で実行できます（Google のログイン処理自体は自動化しません）。
+
+`BrowserManager` の起動モードを `BOOKING_BROWSER_MODE` で切り替えます。サイトプラグイン（tablecheck/generic）は無改修で、`page` を受け取る契約は変わりません。
+
+| 環境変数 | 既定値 | 説明 |
+| --- | --- | --- |
+| `BOOKING_BROWSER_MODE` | `ephemeral` | `ephemeral`=従来（毎チェック新コンテキスト＋`storage_state`注入）／`persistent`=方式①（永続プロファイル再利用） |
+| `BOOKING_USER_DATA_DIR` | `~/.booking-monitor/profile` | 永続プロファイルの保存先（persistent モードのみ） |
+| `BOOKING_HEADFUL` | （未設定） | 真値（`1/true/yes/on`）でブラウザ画面を表示（headful）。初回ログインやデバッグ用。未設定なら headless |
+
+### 初回ログイン（headful・1回だけ）
+画面を表示して対象サイト（TableCheck / Google SSO 等）に手動ログインします。Cookie/セッションは `BOOKING_USER_DATA_DIR` に永続化されます。
+```bash
+BOOKING_BROWSER_MODE=persistent BOOKING_HEADFUL=1 \
+BOOKING_USER_DATA_DIR=~/.booking-monitor/profile \
+python main.py
+```
+
+### 定常運用（headless・同じプロファイル再利用）
+初回ログイン後は headless で同じプロファイルを再利用できます。
+```bash
+BOOKING_BROWSER_MODE=persistent \
+BOOKING_USER_DATA_DIR=~/.booking-monitor/profile \
+python main.py
+```
+
+### 通知（ローカルから Discord）
+`python main.py` は**収集と Discord 通知を同一プロセス**で行います。`.env` に `DISCORD_WEBHOOK_URL` を設定すれば、ローカルPCから直接 Discord に通知が飛びます。
+
+### デプロイ構成（収集=ローカル / Cloud Run=ダッシュボードのみ）
+収集（`main.py` スケジューラ）をローカルPC常駐に切り替え、**Cloud Run はダッシュボード（`app.py`）のみ**を担います（`Dockerfile` の起動コマンドは元々 `app.py` のみで、スケジューラは別エントリポイントです）。ローカルで収集した結果を Cloud Run のダッシュボードに反映したい場合は、**ローカル側でも `GOOGLE_CLOUD_PROJECT` を設定**して同じ Firestore に書き込んでください（未設定ならローカルの `logs/*.jsonl` のみに保存されます）。
+
+> 注意: 永続プロファイル／headful はローカルPC前提です（headless の Cloud Run では人手ログインができません）。
+
 ## 認証設定
 
 このアプリは Firebase Authentication を使用したログイン認証が必要です。`.env` に以下の変数を設定してください。

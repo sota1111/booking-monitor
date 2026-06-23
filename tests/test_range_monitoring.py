@@ -237,7 +237,9 @@ async def test_monitor_notifies_on_any_available_slot(monkeypatch, tmp_path):
             return None
 
     monkeypatch.setattr(monitor_service, "check_target", fake_check)
-    monkeypatch.setattr(monitor_service, "BrowserManager", lambda: _NoBrowser())
+    monkeypatch.setattr(
+        monitor_service, "browser_manager_from_env", lambda: _NoBrowser()
+    )
     monkeypatch.setattr(
         "booking_monitor.notifier.Notifier.send", fake_send, raising=True
     )
