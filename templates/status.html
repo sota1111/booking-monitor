@@ -131,6 +131,12 @@
     </form>
   </nav>
   <main>
+    {% if sample_mode %}
+    <div class="alert alert-warning">
+      <strong>サンプルデータ表示中：</strong>実際の監視結果ではありません。（SEED_SAMPLE_DATA 有効）
+    </div>
+    {% endif %}
+
     {% if error %}
     <div class="alert alert-error">
       <strong>エラー:</strong> {{ error }}
@@ -174,6 +180,16 @@
           <div class="stat-value">{{ summary.unchecked or 0 }}</div>
           <div class="stat-label">未確認</div>
         </div>
+        {% if summary.total_slots and summary.total_slots > 0 %}
+        <div class="stat-box">
+          <div class="stat-value green">{{ summary.available_slots or 0 }}</div>
+          <div class="stat-label">空きスロット</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-value">{{ summary.total_slots }}</div>
+          <div class="stat-label">監視スロット計</div>
+        </div>
+        {% endif %}
       </div>
       <div class="time-info">
         <span>最終チェック: <strong id="last-check">{{ summary.last_check_at or '未実行' }}</strong></span>

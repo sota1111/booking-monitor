@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from booking_monitor.config import validate_config
-from booking_monitor.services.config_loader import load_active_config
+from booking_monitor.services.config_loader import load_active_config, sample_mode_enabled
 from booking_monitor.services.history_factory import get_history
 from booking_monitor.services.view_models import (
     build_calendar_view,
@@ -43,6 +43,7 @@ async def status_page(request: Request):
                 "targets": [],
                 "summary": {},
                 "config_warnings": [],
+                "sample_mode": sample_mode_enabled(),
             },
         )
 
@@ -56,6 +57,7 @@ async def status_page(request: Request):
             "targets": targets_data,
             "summary": summary,
             "config_warnings": config_warnings,
+            "sample_mode": sample_mode_enabled(),
         },
     )
 

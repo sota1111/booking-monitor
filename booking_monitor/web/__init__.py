@@ -49,6 +49,23 @@ def create_app() -> FastAPI:
         if not missing:
             logging.info("auth config OK")
 
+    # Sample-data mode (SOT-1152): when enabled, populate the sample config and
+    # history files at startup so the dashboard can be evaluated without live
+    # scraping. Completely inert when SEED_SAMPLE_DATA is unset (production).
+    @app.on_event("startup")
+    def _seed_sample_data() -> None:
+        from booking_monitor.services.config_loader import sample_mode_enabled
+
+        if not sample_mode_enabled():
+            return
+        try:
+            from booking_monitor.sample_data import seed_all
+
+            config_path = os.getenv("CONFIG_PATH", "config.sample.json")
+            seed_all(config_path=config_path)
+        except Exception as e:  # pragma: no cover - defensive
+            logging.warning("Sample data seeding failed: %s", e)
+
     # Include routers
     from booking_monitor.web.auth import router as auth_router
     from booking_monitor.web.monitor import router as monitor_router

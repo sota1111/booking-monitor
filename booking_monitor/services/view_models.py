@@ -77,6 +77,13 @@ def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any
     failed_count = sum(1 for t in targets_data if t["status"] == "error")
     unchecked_count = sum(1 for t in targets_data if t["status"] == "unchecked")
 
+    # Aggregate per-slot availability across range-based targets (SOT-1152) so the
+    # dashboard can surface how many concrete slots are open vs. monitored.
+    available_slots = sum(
+        t["grid"]["available_count"] for t in targets_data if t.get("grid")
+    )
+    total_slots = sum(t["grid"]["total"] for t in targets_data if t.get("grid"))
+
     checked_ats = [t["checked_at"] for t in targets_data if t["checked_at"]]
     last_check_at = max(checked_ats) if checked_ats else None
 
@@ -94,6 +101,8 @@ def build_status_view(config: Any, history: History) -> Tuple[List[Dict[str, Any
         "full": full_count,
         "failed": failed_count,
         "unchecked": unchecked_count,
+        "available_slots": available_slots,
+        "total_slots": total_slots,
         "last_check_at": last_check_at,
         "last_notify_at": last_notify_at,
     }
