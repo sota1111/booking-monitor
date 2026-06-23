@@ -48,6 +48,9 @@
     .empty { color: #888; font-size: 0.9rem; padding: 0.5rem 0; }
     @media (max-width: 600px) {
       main { padding: 0.6rem; }
+      /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
+      nav { position: fixed; top: auto; bottom: 0; left: 0; right: 0; box-shadow: 0 -2px 8px rgba(0,0,0,0.12); }
+      body { padding-bottom: 56px; }
       /* The day×time matrix keeps its own horizontal scroll on mobile. */
     }
   </style>
