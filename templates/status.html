@@ -91,6 +91,9 @@
     .legend-box { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; vertical-align: middle; margin-right: 0.25rem; }
     @media (max-width: 600px) {
       main { padding: 0.6rem; }
+      /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
+      nav { position: fixed; top: auto; bottom: 0; left: 0; right: 0; box-shadow: 0 -2px 8px rgba(0,0,0,0.12); }
+      body { padding-bottom: 56px; }
       .summary-grid { grid-template-columns: repeat(3, 1fr); }
       .stat-box .stat-value { font-size: 1.3rem; }
       /* Stacked-card tables: on mobile, collapse each row into a vertical

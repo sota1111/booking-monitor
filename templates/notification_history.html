@@ -38,6 +38,9 @@
     .overflow-x { overflow-x: auto; }
     @media (max-width: 600px) {
       main { padding: 0.6rem; }
+      /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
+      nav { position: fixed; top: auto; bottom: 0; left: 0; right: 0; box-shadow: 0 -2px 8px rgba(0,0,0,0.12); }
+      body { padding-bottom: 56px; }
       /* Stacked-card tables: on mobile, collapse each row into a vertical
          "label: value" card so no horizontal scrolling is required. */
       .overflow-x { overflow-x: visible; }
