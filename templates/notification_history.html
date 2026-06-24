@@ -151,6 +151,10 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
         <span class="nav-text">カレンダー</span>
       </a>
+      <a href="/monitor">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        <span class="nav-text">監視</span>
+      </a>
       <a href="/notification-history" class="active">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
         <span class="nav-text">履歴</span>
@@ -234,171 +238,6 @@
         <span id="run-result"></span>
       </div>
     </div>
-
-    <!-- Add target -->
-    <div class="card add-form">
-      <h2>監視対象を追加</h2>
-      <form id="add-target-form" onsubmit="return addTarget(event)">
-        <div class="form-grid">
-          <div class="field">
-            <label for="f-name">店舗名 <span class="hint">必須</span></label>
-            <input type="text" id="f-name" name="name" required placeholder="例: ○○レストラン">
-          </div>
-          <div class="field full">
-            <label for="f-url">URL <span class="hint">必須</span></label>
-            <input type="url" id="f-url" name="url" required placeholder="https://...">
-          </div>
-          <div class="field">
-            <label for="f-site-type">種別</label>
-            <select id="f-site-type" name="site_type">
-              <option value="generic">汎用 HTTP</option>
-              <option value="tablecheck">TableCheck</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="f-time">時刻</label>
-            <input type="time" id="f-time" name="time">
-          </div>
-          <div class="field">
-            <label for="f-adults">大人</label>
-            <input type="number" id="f-adults" name="adults" min="0" value="2">
-          </div>
-          <div class="field">
-            <label for="f-children">子ども（3歳以下）</label>
-            <input type="number" id="f-children" name="children_under_3" min="0" value="0">
-          </div>
-          <div class="field">
-            <label for="f-interval">チェック間隔（秒）</label>
-            <input type="number" id="f-interval" name="interval_seconds" min="60" value="300">
-          </div>
-          <div class="field full">
-            <label>曜日</label>
-            <div class="dow">
-              {% for d in ['月','火','水','木','金','土','日'] %}
-              <label><input type="checkbox" name="days_of_week" value="{{ d }}">{{ d }}</label>
-              {% endfor %}
-            </div>
-          </div>
-          <div class="field">
-            <label for="f-avail">空きありキーワード <span class="hint">カンマ区切り</span></label>
-            <input type="text" id="f-avail" name="available_keywords" placeholder="空きあり, 予約可">
-          </div>
-          <div class="field">
-            <label for="f-unavail">満席キーワード <span class="hint">カンマ区切り</span></label>
-            <input type="text" id="f-unavail" name="unavailable_keywords" placeholder="満席, 予約不可">
-          </div>
-          <div class="field full">
-            <div class="checkbox-row">
-              <input type="checkbox" id="f-notify" name="notify" value="on" checked>
-              <label for="f-notify">通知する</label>
-            </div>
-          </div>
-        </div>
-        <div class="actions">
-          <button type="submit" class="submit" id="add-submit">追加</button>
-          <span id="add-result" style="margin-left:0.8rem;font-size:0.9rem"></span>
-        </div>
-      </form>
-    </div>
-
-    <!-- Target List -->
-    <div class="card">
-      <h2>監視対象一覧</h2>
-      {% if not targets %}
-      <p style="color:#888">監視対象が設定されていません。</p>
-      {% else %}
-      <div class="overflow-x">
-        <table class="responsive-table">
-          <thead>
-            <tr>
-              <th>店舗名</th>
-              <th>種別</th>
-              <th>曜日</th>
-              <th>時刻</th>
-              <th>大人</th>
-              <th>子ども</th>
-              <th>通知</th>
-              <th>状態</th>
-              <th>最終確認</th>
-              <th>エラー</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for t in targets %}
-          <tr {% if t.status == 'available' %}class="highlight"{% endif %}>
-            <td data-label="店舗名">
-              <a href="{{ t.url }}" target="_blank" rel="noopener" style="color:#1565c0;text-decoration:none">
-                {{ t.name }}
-              </a>
-            </td>
-            <td data-label="種別">{{ t.site_type }}</td>
-            <td data-label="曜日">
-              {% if t.conditions and t.conditions.days_of_week %}
-              {{ t.conditions.days_of_week | join(', ') }}
-              {% else %}-{% endif %}
-              {% if t.conditions and t.conditions.date_range %}
-              <span class="range-note">{{ t.conditions.date_range.start }} 〜 {{ t.conditions.date_range.end }}</span>
-              {% endif %}
-            </td>
-            <td data-label="時刻">
-              {% if t.conditions and t.conditions.time %}{{ t.conditions.time }}{% else %}-{% endif %}
-              {% if t.conditions and t.conditions.time_range %}
-              <span class="range-note">{{ t.conditions.time_range.start }}〜{{ t.conditions.time_range.end }} / {{ t.conditions.time_range.step_minutes }}分</span>
-              {% endif %}
-            </td>
-            <td data-label="大人">
-              {% if t.conditions %}{{ t.conditions.adults }}名{% else %}-{% endif %}
-            </td>
-            <td data-label="子ども">
-              {% if t.conditions %}{{ t.conditions.children_under_3 }}名{% else %}-{% endif %}
-            </td>
-            <td data-label="通知">
-              {% if t.notify %}
-              <span class="notify-on">ON</span>
-              {% else %}
-              <span class="notify-off">OFF</span>
-              {% endif %}
-            </td>
-            <td data-label="状態">
-              {% if t.status == 'available' and t.notified %}
-              <span class="badge badge-available-notified">空きあり 通知済</span>
-              {% elif t.status == 'available' %}
-              <span class="badge badge-available">空きあり</span>
-              {% elif t.status == 'unavailable' %}
-              <span class="badge badge-unavailable">満席</span>
-              {% elif t.status == 'unchecked' %}
-              <span class="badge badge-unchecked">未確認</span>
-              {% elif t.status == 'error' %}
-              <span class="badge badge-error">取得失敗</span>
-              {% else %}
-              <span class="badge badge-unchecked">{{ t.status }}</span>
-              {% endif %}
-            </td>
-            <td data-label="最終確認" class="checked-at" data-iso="{{ t.checked_at or '' }}">{{ t.checked_at or '-' }}</td>
-            <td data-label="エラー">
-              {% if t.error %}
-              <span class="error-detail">{{ t.error | truncate(80) }}</span>
-              {% else %}-{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% endif %}
-    </div>
-
-    {% set error_targets = targets | selectattr('status', 'equalto', 'error') | list %}
-    {% if error_targets %}
-    <div class="card">
-      <h2 style="color:#c62828">エラー詳細</h2>
-      {% for t in error_targets %}
-      <div style="margin-bottom:0.8rem;padding:0.6rem;background:#ffebee;border-radius:4px">
-        <strong>{{ t.name }}</strong>: <span style="font-size:0.9rem">{{ t.error or 'Unknown error' }}</span>
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
 
     <!-- History (notification + monitoring) consolidated with tabs -->
     <div class="card">
@@ -522,11 +361,6 @@
       if (lastNotify && lastNotify.textContent !== '履歴なし') {
         lastNotify.textContent = isoToJst(lastNotify.textContent.trim());
       }
-      // Dashboard: target list 最終確認
-      document.querySelectorAll('.checked-at').forEach(function(td) {
-        const iso = td.dataset.iso;
-        if (iso) td.textContent = isoToJst(iso);
-      });
       // Notification history: 通知日時
       document.querySelectorAll('.iso-ts').forEach(function(td) {
         td.textContent = isoToJst(td.dataset.iso);
@@ -556,59 +390,6 @@
       });
       const label = document.getElementById('count-label');
       if (label) label.textContent = visible + ' 件表示';
-    }
-
-    function addTarget(event) {
-      event.preventDefault();
-      var form = document.getElementById('add-target-form');
-      var btn = document.getElementById('add-submit');
-      var result = document.getElementById('add-result');
-
-      var days = Array.prototype.slice
-        .call(form.querySelectorAll('input[name="days_of_week"]:checked'))
-        .map(function(cb) { return cb.value; });
-
-      var payload = {
-        name: form.elements['name'].value.trim(),
-        url: form.elements['url'].value.trim(),
-        site_type: form.elements['site_type'].value,
-        time: form.elements['time'].value,
-        adults: form.elements['adults'].value,
-        children_under_3: form.elements['children_under_3'].value,
-        interval_seconds: form.elements['interval_seconds'].value,
-        available_keywords: form.elements['available_keywords'].value,
-        unavailable_keywords: form.elements['unavailable_keywords'].value,
-        notify: form.elements['notify'].checked,
-        days_of_week: days
-      };
-
-      btn.disabled = true;
-      result.textContent = '';
-      result.className = '';
-
-      fetch('/targets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-        .then(function(res) { return res.json().then(function(d) { return { ok: res.ok, data: d }; }); })
-        .then(function(r) {
-          btn.disabled = false;
-          if (r.ok && r.data.status === 'ok') {
-            result.textContent = '✓ 追加しました。再読み込みします…';
-            result.className = 'result-ok';
-            setTimeout(function() { window.location.href = '/notification-history'; }, 600);
-          } else {
-            result.textContent = '✗ ' + (r.data.error || '追加に失敗しました');
-            result.className = 'result-err';
-          }
-        })
-        .catch(function(e) {
-          btn.disabled = false;
-          result.textContent = '✗ 通信エラー: ' + e.message;
-          result.className = 'result-err';
-        });
-      return false;
     }
 
     function runMonitor() {
