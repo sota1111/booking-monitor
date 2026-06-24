@@ -14,6 +14,10 @@ check_untyped_defs = true
 [tool.pytest.ini_options]
 pythonpath = ["."]
 asyncio_mode = "auto"
+# 管理UIの Playwright E2E は `e2e` マーカーで分離し、既定の `pytest` 実行からは除外する（SOT-1154）。
+# E2E のみ実行する場合は `pytest -m e2e`。既存のユニット/統合テストはサーバ起動なしで従来通り動く。
+addopts = "-m 'not e2e'"
 markers = [
     "playwright: tests that require a real Chromium browser",
+    "e2e: end-to-end browser tests driving the admin dashboard via pytest-playwright (requires a live server)",
 ]
