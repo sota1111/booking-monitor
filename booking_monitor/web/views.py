@@ -1,11 +1,20 @@
 import logging
 
 from fastapi import APIRouter, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-from booking_monitor.config import validate_config
-from booking_monitor.services.config_loader import load_active_config, sample_mode_enabled
+from booking_monitor.config import (
+    Conditions,
+    Target,
+    save_config,
+    validate_config,
+)
+from booking_monitor.services.config_loader import (
+    load_active_config,
+    resolve_writable_config_path,
+    sample_mode_enabled,
+)
 from booking_monitor.services.history_factory import get_history
 from booking_monitor.services.view_models import (
     build_calendar_view,
@@ -154,3 +163,83 @@ async def config_page(request: Request):
             "error": None,
         },
     )
+
+
+def _parse_keywords(raw) -> list[str]:
+    """Split a comma-separated keyword string (or list) into a clean list."""
+    if isinstance(raw, list):
+        return [str(kw).strip() for kw in raw if str(kw).strip()]
+    return [kw.strip() for kw in str(raw or "").split(",") if kw.strip()]
+
+
+def _int_field(raw, default: int) -> int:
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError, AttributeError):
+        return default
+
+
+def _bool_field(raw) -> bool:
+    if isinstance(raw, bool):
+        return raw
+    return str(raw).strip().lower() in {"on", "true", "1", "yes"}
+
+
+@router.post("/targets", name="add_target")
+async def add_target(request: Request):
+    """Append a new monitoring target from the dashboard form and persist it.
+
+    The dashboard form submits JSON via fetch (matching /run and login), so this
+    route reads a JSON body rather than relying on multipart form parsing.
+    """
+    auth_check = require_login(request)
+    if isinstance(auth_check, RedirectResponse):
+        return JSONResponse({"status": "error", "error": "Unauthorized"}, status_code=401)
+
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+
+    name = str(data.get("name", "")).strip()
+    url = str(data.get("url", "")).strip()
+
+    # Name and URL are required.
+    if not name or not url:
+        return JSONResponse(
+            {"status": "error", "error": "店舗名とURLは必須です"}, status_code=400
+        )
+
+    days = data.get("days_of_week") or []
+    if not isinstance(days, list):
+        days = [days]
+
+    conditions = Conditions(
+        adults=_int_field(data.get("adults"), 2),
+        children_under_3=_int_field(data.get("children_under_3"), 0),
+        days_of_week=[str(d) for d in days],
+        time=str(data.get("time", "")).strip(),
+    )
+
+    target = Target(
+        name=name,
+        url=url,
+        interval_seconds=_int_field(data.get("interval_seconds"), 300),
+        available_keywords=_parse_keywords(data.get("available_keywords", "")),
+        unavailable_keywords=_parse_keywords(data.get("unavailable_keywords", "")),
+        notify=_bool_field(data.get("notify", False)),
+        site_type=str(data.get("site_type", "generic")).strip() or "generic",
+        conditions=conditions,
+    )
+
+    try:
+        config = load_active_config()
+        config.targets.append(target)
+        save_config(config, resolve_writable_config_path())
+    except Exception as e:
+        logger.error(f"Failed to add target: {e}")
+        return JSONResponse(
+            {"status": "error", "error": "保存に失敗しました"}, status_code=500
+        )
+
+    return JSONResponse({"status": "ok", "name": name})

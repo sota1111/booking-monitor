@@ -152,6 +152,75 @@ def load_config(path: str) -> Config:
     return Config(targets=targets, notification=notification)
 
 
+def _conditions_to_dict(conditions: Optional[Conditions]) -> Optional[dict]:
+    if conditions is None:
+        return None
+    data: dict = {
+        "adults": conditions.adults,
+        "children_under_3": conditions.children_under_3,
+        "days_of_week": list(conditions.days_of_week),
+        "time": conditions.time,
+    }
+    if conditions.date_range is not None:
+        data["date_range"] = {
+            "start": conditions.date_range.start,
+            "end": conditions.date_range.end,
+        }
+    if conditions.time_range is not None:
+        data["time_range"] = {
+            "start": conditions.time_range.start,
+            "end": conditions.time_range.end,
+            "step_minutes": conditions.time_range.step_minutes,
+        }
+    return data
+
+
+def _target_to_dict(target: Target) -> dict:
+    data: dict = {
+        "name": target.name,
+        "url": target.url,
+        "interval_seconds": target.interval_seconds,
+        "available_keywords": list(target.available_keywords),
+        "unavailable_keywords": list(target.unavailable_keywords),
+        "notify": target.notify,
+        "site_type": target.site_type,
+        "session_state_env": target.session_state_env,
+    }
+    conditions = _conditions_to_dict(target.conditions)
+    if conditions is not None:
+        data["conditions"] = conditions
+    return data
+
+
+def _notification_to_dict(notification: Notification) -> dict:
+    data: dict = {
+        "type": notification.type,
+        "webhook_url_env": notification.webhook_url_env,
+    }
+    if notification.channels:
+        data["channels"] = [
+            {
+                "type": ch.type,
+                "webhook_url_env": ch.webhook_url_env,
+                "enabled": ch.enabled,
+            }
+            for ch in notification.channels
+        ]
+    if notification.snooze_until is not None:
+        data["snooze_until"] = notification.snooze_until
+    return data
+
+
+def save_config(config: Config, path: str) -> None:
+    """Serialize ``config`` back to JSON at ``path`` (round-trips with load_config)."""
+    data = {
+        "targets": [_target_to_dict(t) for t in config.targets],
+        "notification": _notification_to_dict(config.notification),
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+
 def validate_config(config: Config) -> list[str]:
     """Validate config and return list of warning messages."""
     warnings = []

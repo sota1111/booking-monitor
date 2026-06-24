@@ -31,6 +31,23 @@ def resolve_config_path() -> str:
         config_path = "config.example.json"
     return config_path
 
+def resolve_writable_config_path() -> str:
+    """Resolves the path to write config back to when adding/editing targets.
+
+    Never returns ``config.example.json`` (the committed example must not be
+    mutated): outside sample mode this is ``CONFIG_PATH`` or ``config.json``,
+    even when that file does not exist yet (it will be created on first write).
+    In sample mode the sample config is the active, writable file.
+    """
+    if sample_mode_enabled():
+        if not os.path.exists(_SAMPLE_CONFIG_PATH):
+            from booking_monitor.sample_data import write_sample_config
+
+            write_sample_config(_SAMPLE_CONFIG_PATH)
+        return _SAMPLE_CONFIG_PATH
+    return os.getenv("CONFIG_PATH", "config.json")
+
+
 def load_active_config():
     """Loads the active configuration."""
     return load_config(resolve_config_path())
