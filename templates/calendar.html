@@ -46,6 +46,11 @@
     .grid-legend span { margin-right: 1rem; }
     .legend-box { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 2px; vertical-align: middle; margin-right: 0.25rem; }
     .empty { color: #888; font-size: 0.9rem; padding: 0.5rem 0; }
+    .grid-target { margin-bottom: 1.4rem; }
+    .grid-target h3 { margin: 0 0 0.5rem; font-size: 0.95rem; color: #444; }
+    .grid-meta { font-size: 0.8rem; color: #777; margin-bottom: 0.4rem; }
+    .checked-at { font-size: 0.78rem; color: #888; white-space: nowrap; }
+    .slot-cell.slot-available { font-weight: 600; }
     @media (max-width: 600px) {
       main { padding: 0.6rem; }
       /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
@@ -60,8 +65,8 @@
   <nav>
     <span class="brand"><span class="brand-mark">📅</span>Booking Monitor</span>
     <div class="nav-links">
-      <a href="/">ダッシュボード</a>
-      <a href="/calendar" class="active">カレンダー</a>
+      <a href="/" class="active">カレンダー</a>
+      <a href="/dashboard">ダッシュボード</a>
       <a href="/history">監視履歴</a>
       <a href="/notification-history">通知履歴</a>
       <a href="/config">設定確認</a>
@@ -124,6 +129,71 @@
       </div>
       {% endif %}
     </div>
+
+    {% set grid_targets = targets | selectattr('grid') | list %}
+    {% if grid_targets %}
+    <div class="card">
+      <h2>空き状況グリッド（日付 × 時刻）</h2>
+      {% for t in grid_targets %}
+      <div class="grid-target">
+        <h3>{{ t.name }}</h3>
+        <div class="grid-meta">
+          空き {{ t.grid.available_count }} / {{ t.grid.total }} スロット
+          {% if t.checked_at %}<span class="checked-at" data-iso="{{ t.checked_at }}">（最終確認: {{ t.checked_at }}）</span>{% endif %}
+        </div>
+        <div class="overflow-x">
+          <table class="slot-grid">
+            <thead>
+              <tr>
+                <th class="row-head">日付＼時刻</th>
+                {% for time in t.grid.times %}<th>{{ time }}</th>{% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for date in t.grid.dates %}
+              <tr>
+                <th class="row-head">{{ date }}</th>
+                {% for time in t.grid.times %}
+                {% set state = t.grid.cells[date][time] | default('unknown') %}
+                {% if state == 'available' %}
+                <td class="slot-cell slot-available" title="{{ date }} {{ time }} 空きあり">○</td>
+                {% elif state == 'unavailable' %}
+                <td class="slot-cell slot-unavailable" title="{{ date }} {{ time }} 満席">×</td>
+                {% else %}
+                <td class="slot-cell slot-unknown" title="{{ date }} {{ time }} 不明">-</td>
+                {% endif %}
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+      <div class="grid-legend">
+        <span><span class="legend-box slot-available"></span>空きあり</span>
+        <span><span class="legend-box slot-unavailable"></span>満席</span>
+        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/未取得</span>
+      </div>
+    </div>
+    {% endif %}
   </main>
+
+  <script>
+    // Convert ISO timestamps to JST for display (per-target grid "最終確認").
+    function isoToJst(iso) {
+      if (!iso) return '-';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo', year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+      } catch (e) { return iso; }
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('.checked-at').forEach(function (el) {
+        const iso = el.dataset.iso;
+        if (iso) el.textContent = '（最終確認: ' + isoToJst(iso) + '）';
+      });
+    });
+  </script>
 </body>
 </html>

@@ -24,7 +24,7 @@ def require_login(request: Request):
     return True
 
 
-@router.get("/", name="status_page")
+@router.get("/dashboard", name="status_page")
 async def status_page(request: Request):
     auth_check = require_login(request)
     if isinstance(auth_check, RedirectResponse):
@@ -62,7 +62,7 @@ async def status_page(request: Request):
     )
 
 
-@router.get("/calendar", name="calendar_page")
+@router.get("/", name="calendar_page")
 async def calendar_page(request: Request):
     auth_check = require_login(request)
     if isinstance(auth_check, RedirectResponse):
@@ -75,7 +75,7 @@ async def calendar_page(request: Request):
         return templates.TemplateResponse(
             request=request,
             name="calendar.html",
-            context={"error": str(e), "overview": None, "summary": {}},
+            context={"error": str(e), "overview": None, "summary": {}, "targets": []},
         )
 
     history = get_history()
@@ -87,9 +87,16 @@ async def calendar_page(request: Request):
         context={
             "overview": calendar["overview"],
             "summary": calendar["summary"],
+            "targets": calendar["targets"],
             "error": None,
         },
     )
+
+
+@router.get("/calendar")
+async def calendar_redirect(request: Request):
+    # The calendar is now the TOP page (SOT-1198); keep the old URL working.
+    return RedirectResponse(url=request.url_for("calendar_page"), status_code=307)
 
 
 @router.get("/history", name="history_page")

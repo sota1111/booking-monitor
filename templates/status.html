@@ -19,6 +19,7 @@
     nav .nav-links { display: flex; gap: 0.8rem; align-items: center; flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
     nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; white-space: nowrap; padding: 0.2rem 0; }
     nav .nav-links a:hover { color: white; }
+    nav .nav-links a.active { color: white; font-weight: 600; }
     nav form { margin: 0; flex-shrink: 0; }
     nav form button {
       background: none; border: 1px solid rgba(255,255,255,0.5);
@@ -123,8 +124,8 @@
   <nav>
     <span class="brand"><span class="brand-mark">📅</span>Booking Monitor</span>
     <div class="nav-links">
-      <a href="/">ダッシュボード</a>
-      <a href="/calendar">カレンダー</a>
+      <a href="/">カレンダー</a>
+      <a href="/dashboard" class="active">ダッシュボード</a>
       <a href="/history">監視履歴</a>
       <a href="/notification-history">通知履歴</a>
       <a href="/config">設定確認</a>
@@ -290,54 +291,6 @@
       </div>
       {% endif %}
     </div>
-
-    {% set grid_targets = targets | selectattr('grid') | list %}
-    {% if grid_targets %}
-    <div class="card">
-      <h2>空き状況グリッド（日付 × 時刻）</h2>
-      {% for t in grid_targets %}
-      <div class="grid-target">
-        <h3>{{ t.name }}</h3>
-        <div class="grid-meta">
-          空き {{ t.grid.available_count }} / {{ t.grid.total }} スロット
-          {% if t.checked_at %}<span class="checked-at" data-iso="{{ t.checked_at }}">（最終確認: {{ t.checked_at }}）</span>{% endif %}
-        </div>
-        <div class="overflow-x">
-          <table class="slot-grid">
-            <thead>
-              <tr>
-                <th class="row-head">日付＼時刻</th>
-                {% for time in t.grid.times %}<th>{{ time }}</th>{% endfor %}
-              </tr>
-            </thead>
-            <tbody>
-              {% for date in t.grid.dates %}
-              <tr>
-                <th class="row-head">{{ date }}</th>
-                {% for time in t.grid.times %}
-                {% set state = t.grid.cells[date][time] | default('unknown') %}
-                {% if state == 'available' %}
-                <td class="slot-cell slot-available" title="{{ date }} {{ time }} 空きあり">○</td>
-                {% elif state == 'unavailable' %}
-                <td class="slot-cell slot-unavailable" title="{{ date }} {{ time }} 満席">×</td>
-                {% else %}
-                <td class="slot-cell slot-unknown" title="{{ date }} {{ time }} 不明">-</td>
-                {% endif %}
-                {% endfor %}
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {% endfor %}
-      <div class="grid-legend">
-        <span><span class="legend-box slot-available"></span>空きあり</span>
-        <span><span class="legend-box slot-unavailable"></span>満席</span>
-        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/未取得</span>
-      </div>
-    </div>
-    {% endif %}
 
     {% set error_targets = targets | selectattr('status', 'equalto', 'error') | list %}
     {% if error_targets %}

@@ -116,10 +116,12 @@ def build_calendar_view(config: Any, history: History) -> Dict[str, Any]:
     Reuses :func:`build_status_view` to obtain per-target slot grids, then aggregates
     them via :func:`build_calendar_overview`. Returns ``{overview, summary}`` where
     ``overview`` is ``None`` when no target uses range-based monitoring (empty state).
+    ``targets`` carries the per-target slot grids so the calendar page can render the
+    per-target 空き状況グリッド（日付 × 時刻）below the aggregated overview (SOT-1198).
     """
     targets_data, summary = build_status_view(config, history)
     overview = build_calendar_overview(targets_data)
-    return {"overview": overview, "summary": summary}
+    return {"overview": overview, "summary": summary, "targets": targets_data}
 
 
 def build_safe_config(config: Any) -> Dict[str, Any]:
