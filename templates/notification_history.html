@@ -16,8 +16,11 @@
       width: 24px; height: 24px; border-radius: 6px; margin-right: 6px; vertical-align: middle;
       background: linear-gradient(135deg, #3b82f6, #14b8a6); }
     nav .brand { font-weight: bold; font-size: 1.1rem; white-space: nowrap; flex-shrink: 0; }
-    nav .nav-links { display: flex; gap: 0.8rem; align-items: center; flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
-    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; font-size: 0.9rem; white-space: nowrap; padding: 0.2rem 0; }
+    nav .nav-links { display: flex; gap: 1.2rem; align-items: center; flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
+    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; white-space: nowrap;
+      display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; padding: 0.1rem 0; }
+    nav .nav-links a svg { width: 22px; height: 22px; display: block; }
+    nav .nav-links a .nav-text { font-size: 0.7rem; }
     nav .nav-links a:hover { color: white; }
     nav .nav-links a.active { color: white; font-weight: 600; }
     nav form { margin: 0; flex-shrink: 0; }
@@ -100,6 +103,17 @@
       border-radius: 4px; cursor: pointer; font-size: 0.95rem;
     }
     .add-form .hint { font-size: 0.75rem; color: #888; font-weight: normal; }
+    .hist-tabs { display: flex; gap: 0.5rem; border-bottom: 1px solid #e8eaed; margin-bottom: 1rem; }
+    .hist-tab {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 0.5rem 0.9rem; cursor: pointer; font-size: 0.92rem; color: #888; font-weight: 600;
+    }
+    .hist-tab:hover { color: #555; }
+    .hist-tab.active { color: #1565c0; border-bottom-color: #1565c0; }
+    .hist-panel.hidden { display: none; }
+    .filter-bar { margin-bottom: 0.8rem; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .filter-bar input { padding: 0.4rem 0.6rem; border: 1px solid #ccc; border-radius: 4px; min-width: 180px; }
+    .count-label { font-size: 0.85rem; color: #888; }
     @media (max-width: 600px) {
       main { padding: 0.6rem; }
       /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
@@ -133,10 +147,18 @@
   <nav>
     <span class="brand"><span class="brand-mark">📅</span>Booking Monitor</span>
     <div class="nav-links">
-      <a href="/">カレンダー</a>
-      <a href="/history">監視履歴</a>
-      <a href="/notification-history" class="active">通知履歴</a>
-      <a href="/config">設定確認</a>
+      <a href="/">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span class="nav-text">カレンダー</span>
+      </a>
+      <a href="/notification-history" class="active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/><polyline points="12 7 12 12 15 14"/></svg>
+        <span class="nav-text">履歴</span>
+      </a>
+      <a href="/config">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span class="nav-text">設定確認</span>
+      </a>
     </div>
     <form method="post" action="/logout">
       <button type="submit">ログアウト</button>
@@ -378,48 +400,107 @@
     </div>
     {% endif %}
 
-    <!-- Notification history -->
+    <!-- History (notification + monitoring) consolidated with tabs -->
     <div class="card">
-      <h2>通知履歴</h2>
-      <p style="font-size:0.85rem;color:#888;margin-top:-0.5rem">Discord Webhook URLなどの秘密情報はこの画面に表示されません。</p>
-      {% if not records %}
-      <p style="color:#888">まだ通知履歴がありません。</p>
-      {% else %}
-      <div class="overflow-x">
-        <table class="responsive-table">
-          <thead>
-            <tr>
-              <th>通知日時</th>
-              <th>対象店舗</th>
-              <th>結果</th>
-              <th>サマリー</th>
-              <th>エラー概要</th>
-            </tr>
-          </thead>
-          <tbody>
-          {% for r in records %}
-          <tr>
-            <td data-label="通知日時" style="white-space:nowrap" class="iso-ts" data-iso="{{ r.sent_at }}">{{ r.sent_at }}</td>
-            <td data-label="対象店舗">{{ r.target_name }}</td>
-            <td data-label="結果">
-              {% if r.skipped %}
-              <span class="badge badge-skip">通知スキップ</span>
-              {% elif r.success %}
-              <span class="badge badge-ok">送信成功</span>
-              {% else %}
-              <span class="badge badge-fail">送信失敗</span>
-              {% endif %}
-            </td>
-            <td data-label="サマリー" style="font-size:0.82rem;max-width:200px;word-break:break-all">{{ r.summary or '-' }}</td>
-            <td data-label="エラー概要" style="font-size:0.82rem;color:#c62828;max-width:180px;word-break:break-all">
-              {% if r.error %}{{ r.error | truncate(100) }}{% else %}-{% endif %}
-            </td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
+      <div class="hist-tabs">
+        <button type="button" class="hist-tab active" data-tab="notify" onclick="showHistTab('notify')">通知履歴</button>
+        <button type="button" class="hist-tab" data-tab="check" onclick="showHistTab('check')">監視履歴</button>
       </div>
-      {% endif %}
+
+      <!-- 通知履歴 -->
+      <div class="hist-panel" id="panel-notify">
+        <p style="font-size:0.85rem;color:#888;margin-top:-0.3rem">Discord Webhook URLなどの秘密情報はこの画面に表示されません。</p>
+        {% if not records %}
+        <p style="color:#888">まだ通知履歴がありません。</p>
+        {% else %}
+        <div class="overflow-x">
+          <table class="responsive-table">
+            <thead>
+              <tr>
+                <th>通知日時</th>
+                <th>対象店舗</th>
+                <th>結果</th>
+                <th>サマリー</th>
+                <th>エラー概要</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for r in records %}
+            <tr>
+              <td data-label="通知日時" style="white-space:nowrap" class="iso-ts" data-iso="{{ r.sent_at }}">{{ r.sent_at }}</td>
+              <td data-label="対象店舗">{{ r.target_name }}</td>
+              <td data-label="結果">
+                {% if r.skipped %}
+                <span class="badge badge-skip">通知スキップ</span>
+                {% elif r.success %}
+                <span class="badge badge-ok">送信成功</span>
+                {% else %}
+                <span class="badge badge-fail">送信失敗</span>
+                {% endif %}
+              </td>
+              <td data-label="サマリー" style="font-size:0.82rem;max-width:200px;word-break:break-all">{{ r.summary or '-' }}</td>
+              <td data-label="エラー概要" style="font-size:0.82rem;color:#c62828;max-width:180px;word-break:break-all">
+                {% if r.error %}{{ r.error | truncate(100) }}{% else %}-{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- 監視履歴 -->
+      <div class="hist-panel hidden" id="panel-check">
+        <div class="filter-bar">
+          <input type="text" id="search-input" placeholder="店舗名で絞り込み..." oninput="filterRows()">
+          <span class="count-label" id="count-label"></span>
+        </div>
+        {% if not check_records %}
+        <p style="color:#888">まだ監視履歴がありません。手動実行または自動スケジュールが実行されると記録されます。</p>
+        {% else %}
+        <div class="overflow-x">
+          <table class="responsive-table">
+            <thead>
+              <tr>
+                <th>チェック日時</th>
+                <th>対象店舗</th>
+                <th>結果</th>
+                <th>状態変化</th>
+                <th>通知</th>
+                <th>サマリー</th>
+                <th>エラー</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for r in check_records %}
+            <tr class="hist-row" data-name="{{ r.target_name }}">
+              <td data-label="チェック日時" style="white-space:nowrap" class="iso-ts" data-iso="{{ r.checked_at }}">{{ r.checked_at }}</td>
+              <td data-label="対象店舗">{{ r.target_name }}</td>
+              <td data-label="結果">
+                {% if r.error %}
+                <span class="badge badge-error">取得失敗</span>
+                {% elif r.available %}
+                <span class="badge badge-available">空きあり</span>
+                {% else %}
+                <span class="badge badge-unavailable">満席</span>
+                {% endif %}
+              </td>
+              <td data-label="状態変化">
+                {% if r.state_changed %}<span style="color:#2e7d32;font-weight:bold">あり</span>{% else %}-{% endif %}
+              </td>
+              <td data-label="通知">
+                {% if r.notified %}<span style="color:#1565c0">通知済</span>{% else %}-{% endif %}
+              </td>
+              <td data-label="サマリー" style="font-size:0.82rem;max-width:200px;word-break:break-all">{{ r.summary or '-' }}</td>
+              <td data-label="エラー" style="font-size:0.82rem;color:#c62828;max-width:180px;word-break:break-all">{{ r.error or '-' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
     </div>
   </main>
 
@@ -450,7 +531,32 @@
       document.querySelectorAll('.iso-ts').forEach(function(td) {
         td.textContent = isoToJst(td.dataset.iso);
       });
+      // 監視履歴 tab: initial count label
+      const label = document.getElementById('count-label');
+      if (label) label.textContent = document.querySelectorAll('.hist-row').length + ' 件';
     });
+
+    function showHistTab(tab) {
+      document.querySelectorAll('.hist-tab').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+      document.getElementById('panel-notify').classList.toggle('hidden', tab !== 'notify');
+      document.getElementById('panel-check').classList.toggle('hidden', tab !== 'check');
+    }
+
+    function filterRows() {
+      const q = document.getElementById('search-input').value.toLowerCase();
+      const rows = document.querySelectorAll('.hist-row');
+      let visible = 0;
+      rows.forEach(function(row) {
+        const name = (row.dataset.name || '').toLowerCase();
+        const show = !q || name.includes(q);
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+      const label = document.getElementById('count-label');
+      if (label) label.textContent = visible + ' 件表示';
+    }
 
     function addTarget(event) {
       event.preventDefault();
