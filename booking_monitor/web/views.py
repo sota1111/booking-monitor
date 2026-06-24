@@ -81,14 +81,10 @@ async def calendar_redirect(request: Request):
 
 @router.get("/history", name="history_page")
 async def history_page(request: Request):
-    auth_check = require_login(request)
-    if isinstance(auth_check, RedirectResponse):
-        return auth_check
-
-    history = get_history()
-    records = history.get_check_history(limit=200)
-    return templates.TemplateResponse(
-        request=request, name="history.html", context={"records": records}
+    # 監視履歴 is now a tab on the notification-history page (SOT-1186);
+    # keep the old /history URL working by redirecting there.
+    return RedirectResponse(
+        url=request.url_for("notification_history_page"), status_code=307
     )
 
 
@@ -100,6 +96,8 @@ async def notification_history_page(request: Request):
 
     history = get_history()
     records = history.get_notification_history(limit=200)
+    # 監視履歴 (check history) is shown as a second tab on this page (SOT-1186).
+    check_records = history.get_check_history(limit=200)
 
     # The dashboard (summary / target list / manual run) now lives on this page
     # in addition to the notification history table (SOT-1199).
@@ -113,6 +111,7 @@ async def notification_history_page(request: Request):
             name="notification_history.html",
             context={
                 "records": records,
+                "check_records": check_records,
                 "error": str(e),
                 "targets": [],
                 "summary": {},
@@ -128,6 +127,7 @@ async def notification_history_page(request: Request):
         name="notification_history.html",
         context={
             "records": records,
+            "check_records": check_records,
             "error": None,
             "targets": targets_data,
             "summary": summary,
