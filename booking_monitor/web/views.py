@@ -26,39 +26,10 @@ def require_login(request: Request):
 
 @router.get("/dashboard", name="status_page")
 async def status_page(request: Request):
-    auth_check = require_login(request)
-    if isinstance(auth_check, RedirectResponse):
-        return auth_check
-
-    try:
-        config = load_active_config()
-        config_warnings = validate_config(config)
-    except Exception as e:
-        logger.error(f"Failed to load config: {e}")
-        return templates.TemplateResponse(
-            request=request,
-            name="status.html",
-            context={
-                "error": str(e),
-                "targets": [],
-                "summary": {},
-                "config_warnings": [],
-                "sample_mode": sample_mode_enabled(),
-            },
-        )
-
-    history = get_history()
-    targets_data, summary = build_status_view(config, history)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="status.html",
-        context={
-            "targets": targets_data,
-            "summary": summary,
-            "config_warnings": config_warnings,
-            "sample_mode": sample_mode_enabled(),
-        },
+    # The dashboard now lives inside the notification-history page (SOT-1199);
+    # keep the old /dashboard URL working by redirecting there.
+    return RedirectResponse(
+        url=request.url_for("notification_history_page"), status_code=307
     )
 
 
@@ -120,8 +91,40 @@ async def notification_history_page(request: Request):
 
     history = get_history()
     records = history.get_notification_history(limit=200)
+
+    # The dashboard (summary / target list / manual run) now lives on this page
+    # in addition to the notification history table (SOT-1199).
+    try:
+        config = load_active_config()
+        config_warnings = validate_config(config)
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        return templates.TemplateResponse(
+            request=request,
+            name="notification_history.html",
+            context={
+                "records": records,
+                "error": str(e),
+                "targets": [],
+                "summary": {},
+                "config_warnings": [],
+                "sample_mode": sample_mode_enabled(),
+            },
+        )
+
+    targets_data, summary = build_status_view(config, history)
+
     return templates.TemplateResponse(
-        request=request, name="notification_history.html", context={"records": records}
+        request=request,
+        name="notification_history.html",
+        context={
+            "records": records,
+            "error": None,
+            "targets": targets_data,
+            "summary": summary,
+            "config_warnings": config_warnings,
+            "sample_mode": sample_mode_enabled(),
+        },
     )
 
 
