@@ -137,6 +137,48 @@ async def notification_history_page(request: Request):
     )
 
 
+@router.get("/monitor", name="monitor_page")
+async def monitor_page(request: Request):
+    auth_check = require_login(request)
+    if isinstance(auth_check, RedirectResponse):
+        return auth_check
+
+    history = get_history()
+
+    # The add-target form and the target list now live on this dedicated
+    # monitoring page (SOT-1202), moved off the notification-history page.
+    try:
+        config = load_active_config()
+        config_warnings = validate_config(config)
+    except Exception as e:
+        logger.error(f"Failed to load config: {e}")
+        return templates.TemplateResponse(
+            request=request,
+            name="monitor.html",
+            context={
+                "error": str(e),
+                "targets": [],
+                "summary": {},
+                "config_warnings": [],
+                "sample_mode": sample_mode_enabled(),
+            },
+        )
+
+    targets_data, summary = build_status_view(config, history)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="monitor.html",
+        context={
+            "error": None,
+            "targets": targets_data,
+            "summary": summary,
+            "config_warnings": config_warnings,
+            "sample_mode": sample_mode_enabled(),
+        },
+    )
+
+
 @router.get("/config", name="config_page")
 async def config_page(request: Request):
     auth_check = require_login(request)
