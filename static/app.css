@@ -102,8 +102,9 @@ nav .nav-links a {
   padding: 0.1rem 0;
   transition: color 0.15s ease;
 }
-nav .nav-links a svg { width: 22px; height: 22px; display: block; }
-nav .nav-links a .nav-text { font-size: 0.7rem; }
+/* PC: nav menu shows labels only (icons hidden); icons restored on mobile below. */
+nav .nav-links a svg { width: 22px; height: 22px; display: none; }
+nav .nav-links a .nav-text { font-size: 0.9rem; }
 nav .nav-links a:hover { color: white; }
 nav .nav-links a.active { color: white; font-weight: 600; }
 nav form { margin: 0; flex-shrink: 0; }
@@ -210,5 +211,8 @@ table.responsive-table tbody tr:nth-child(even):not(.highlight) {
     z-index: 20;
   }
   nav .nav-links a { flex: 1; }
+  /* Mobile bottom bar keeps the stacked icon + small label. */
+  nav .nav-links a svg { display: block; }
+  nav .nav-links a .nav-text { font-size: 0.7rem; }
   body { padding-bottom: 56px; }
 }
