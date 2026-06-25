@@ -4,36 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>監視 - Booking Monitor</title>
+  <link rel="stylesheet" href="/static/app.css">
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: sans-serif; margin: 0; padding: 0; background: #f5f5f5; color: #333; }
-    nav {
-      background: linear-gradient(90deg, #1f2d3d, #2c3e50); color: white; padding: 0.7rem 1.2rem;
-      display: flex; align-items: center; justify-content: space-between; flex-wrap: nowrap; gap: 0.5rem;
-      position: sticky; top: 0; z-index: 20; box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-    }
-    nav .brand .brand-mark { display: inline-flex; align-items: center; justify-content: center;
-      width: 24px; height: 24px; border-radius: 6px; margin-right: 6px; vertical-align: middle;
-      background: linear-gradient(135deg, #3b82f6, #14b8a6); }
-    nav .brand { font-weight: bold; font-size: 1.1rem; white-space: nowrap; flex-shrink: 0; }
-    nav .nav-links { display: flex; gap: 1.2rem; align-items: center; flex-wrap: nowrap; overflow-x: auto; min-width: 0; }
-    nav .nav-links a { color: rgba(255,255,255,0.85); text-decoration: none; white-space: nowrap;
-      display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1; padding: 0.1rem 0; }
-    nav .nav-links a svg { width: 22px; height: 22px; display: block; }
-    nav .nav-links a .nav-text { font-size: 0.7rem; }
-    nav .nav-links a:hover { color: white; }
-    nav .nav-links a.active { color: white; font-weight: 600; }
-    nav form { margin: 0; flex-shrink: 0; }
-    nav form button {
-      background: none; border: 1px solid rgba(255,255,255,0.5);
-      color: white; padding: 0.3rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;
-    }
-    main { padding: 1rem; max-width: 1100px; margin: 0 auto; }
-    .alert { border-radius: 6px; padding: 0.8rem 1rem; margin-bottom: 0.8rem; }
-    .alert-error { background: #ffebee; border: 1px solid #ef9a9a; color: #c62828; }
-    .alert-warning { background: #fff8e1; border: 1px solid #ffe082; color: #f57f17; }
-    .card { background: white; border: 1px solid #e8eaed; border-radius: 12px; padding: 1.2rem; margin-bottom: 1rem; box-shadow: 0 1px 2px rgba(16,24,40,0.06); }
-    .card h2 { margin: 0 0 1rem; font-size: 1rem; color: #555; font-weight: 600; }
     table { border-collapse: collapse; width: 100%; font-size: 0.88rem; }
     th { background: #eceff1; text-align: left; padding: 0.5rem 0.7rem; font-weight: 600; white-space: nowrap; }
     td { padding: 0.5rem 0.7rem; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
@@ -52,7 +24,6 @@
     .notify-off { color: #aaa; }
     .error-detail { font-size: 0.8rem; color: #c62828; max-width: 200px; word-break: break-all; }
     .checked-at { font-size: 0.78rem; color: #888; white-space: nowrap; }
-    .overflow-x { overflow-x: auto; }
     .range-note { font-size: 0.75rem; color: #1565c0; display: block; margin-top: 0.15rem; }
     .add-form .form-grid {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -79,11 +50,6 @@
     .result-ok { color: #2e7d32; }
     .result-err { color: #c62828; }
     @media (max-width: 600px) {
-      main { padding: 0.6rem; }
-      /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
-      nav .nav-links { position: fixed; left: 0; right: 0; bottom: 0; top: auto; background: linear-gradient(90deg, #1f2d3d, #2c3e50); padding: 0.5rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,0.12); justify-content: space-around; gap: 0; z-index: 20; }
-      nav .nav-links a { flex: 1; }
-      body { padding-bottom: 56px; }
       /* Stacked-card tables: on mobile, collapse each row into a vertical
          "label: value" card so no horizontal scrolling is required. */
       .overflow-x { overflow-x: visible; }
