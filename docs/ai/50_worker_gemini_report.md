@@ -76,3 +76,38 @@ all template markup unchanged to avoid layout/i18n regressions.
 
 ## Next Action
 READY_FOR_REVIEW
+
+---
+
+# 案C (SOT-1257: カレンダーUX/可読性改善)
+
+**Fallback disclosure (audit):** Gemini (IneligibleTier) / Codex (cooldown) non-responsive (exit 75);
+Claude Code implemented 案C directly under the fallback policy.
+
+## Summary
+Calendar UX + table readability improvements.
+
+## Changes
+- `static/app.css`:
+  - `table.slot-grid th.row-head { position: sticky; left: 0 }` — the date column stays visible while
+    the day×time matrix scrolls horizontally (notably on mobile).
+  - `table.slot-grid td:hover { outline ... }` — clear hover target; native `title` already shows
+    店名・時刻・空き状況 on each cell.
+  - `.responsive-table tbody tr:nth-child(even):not(.highlight)` zebra striping for monitor/history/
+    notification-history tables (preserves the green available-row highlight).
+  - `.grid-legend.legend-top` spacing helper.
+- `templates/calendar.html`: moved both legends (overview + per-target grid) ABOVE their tables
+  (`grid-legend legend-top`). Pure markup move — text/classes/Jinja unchanged (i18n-safe).
+
+## Commands Run
+- Jinja compile (7 templates) → ok; `ruff check .` → passed; `pytest -m "not e2e"` → 91 passed/22 skipped.
+
+## Acceptance Criteria
+- [x] 凡例が上部に配置される（overview + per-target grid 両方）
+- [x] 空きセルのホバーで店名・時刻が出る（native title + hover cue）
+- [x] 日付列が sticky 固定（横スクロール時に保持・モバイル含む）
+- [x] 監視/履歴の行視認性改善（ゼブラ）
+- [x] ruff / pytest / Jinja compile pass
+
+## Next Action
+READY_FOR_REVIEW

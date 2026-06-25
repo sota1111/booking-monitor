@@ -170,6 +170,29 @@ textarea:focus-visible {
 /* ---- Utilities ---- */
 .overflow-x { overflow-x: auto; }
 
+/* ---- 案C: calendar UX + table readability ---- */
+/* Keep the date (row-head) column visible while the day×time matrix scrolls
+   horizontally — especially useful on mobile. The row-head already carries an
+   opaque background, so it cleanly covers cells scrolling underneath. */
+table.slot-grid th.row-head {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+/* Clear hover target on matrix cells (native `title` shows 店名・時刻・空き状況). */
+table.slot-grid td:hover {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  cursor: default;
+}
+/* Legend pinned to the top of its scroll area. */
+.grid-legend.legend-top { margin-top: 0; margin-bottom: 0.6rem; }
+/* Zebra striping for data tables (monitor / history / notification history),
+   without overriding the green "available" highlight rows. */
+table.responsive-table tbody tr:nth-child(even):not(.highlight) {
+  background: #fafbfc;
+}
+
 /* ---- Mobile: nav becomes a fixed bottom bar (shared across all nav pages) ---- */
 @media (max-width: 600px) {
   main { padding: 0.6rem; }

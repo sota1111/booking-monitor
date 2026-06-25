@@ -70,6 +70,14 @@
         対象 {{ overview.target_count }} 件 / 空きスロット {{ overview.available_count }} 件
         （いずれかの対象に空きがあるセルを「空きあり」と表示）
       </div>
+      <div class="grid-legend legend-top">
+        <span>空きあり（店ごとに色分け・数字=空き対象数）:</span>
+        {% for tc in overview.target_colors %}
+        <span><span class="legend-box" style="background:{{ tc.color }}"></span>{{ tc.name }}</span>
+        {% endfor %}
+        <span><span class="legend-box slot-unavailable"></span>満席</span>
+        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/対象なし</span>
+      </div>
       <div class="overflow-x">
         <table class="slot-grid">
           <thead>
@@ -97,14 +105,6 @@
           </tbody>
         </table>
       </div>
-      <div class="grid-legend">
-        <span>空きあり（店ごとに色分け・数字=空き対象数）:</span>
-        {% for tc in overview.target_colors %}
-        <span><span class="legend-box" style="background:{{ tc.color }}"></span>{{ tc.name }}</span>
-        {% endfor %}
-        <span><span class="legend-box slot-unavailable"></span>満席</span>
-        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/対象なし</span>
-      </div>
       {% else %}
       <div class="empty">
         日×時間レンジ監視（date_range / time_range）が設定された対象がまだありません。
@@ -117,6 +117,11 @@
     {% if grid_targets %}
     <div class="card">
       <h2>空き状況グリッド（日付 × 時刻）</h2>
+      <div class="grid-legend legend-top">
+        <span><span class="legend-box slot-available"></span>空きあり</span>
+        <span><span class="legend-box slot-unavailable"></span>満席</span>
+        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/未取得</span>
+      </div>
       {% for t in grid_targets %}
       <div class="grid-target">
         <h3>{{ t.name }}</h3>
@@ -153,11 +158,6 @@
         </div>
       </div>
       {% endfor %}
-      <div class="grid-legend">
-        <span><span class="legend-box slot-available"></span>空きあり</span>
-        <span><span class="legend-box slot-unavailable"></span>満席</span>
-        <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/未取得</span>
-      </div>
     </div>
     {% endif %}
   </main>
