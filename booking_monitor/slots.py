@@ -185,6 +185,43 @@ def build_slot_grid(slots: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     }
 
 
+# Distinguishable colors assigned to each store (監視対象) in the aggregated
+# overview so an "available" cell is colored by which store is open (SOT-1244).
+# The first color matches the legacy single-store green so existing setups look
+# unchanged. Colors cycle if there are more stores than palette entries.
+_OVERVIEW_PALETTE = [
+    "#66bb6a",
+    "#42a5f5",
+    "#ffa726",
+    "#ab47bc",
+    "#ef5350",
+    "#26c6da",
+    "#d4e157",
+    "#8d6e63",
+    "#ec407a",
+    "#78909c",
+]
+
+
+def _overview_background(colors: List[str]) -> str:
+    """CSS ``background`` for an available cell colored by its open store(s).
+
+    A single open store gets a solid color; multiple open stores get an even
+    horizontal ``linear-gradient`` so each store occupies an equal-width stripe.
+    """
+    if not colors:
+        return ""
+    if len(colors) == 1:
+        return colors[0]
+    n = len(colors)
+    stops = []
+    for i, color in enumerate(colors):
+        start = round(i * 100 / n, 4)
+        end = round((i + 1) * 100 / n, 4)
+        stops.append(f"{color} {start}% {end}%")
+    return "linear-gradient(90deg, " + ", ".join(stops) + ")"
+
+
 def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Aggregate every target's per-slot grid into one day×time calendar overview.
 
@@ -197,20 +234,42 @@ def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str,
     - ``"unavailable"`` if at least one target reports the cell but none is open;
     - ``"unknown"`` if every reporting target is unknown.
 
-    Returns ``{dates, times, cells, available_count, target_count}`` where ``cells`` is
-    ``{date: {time: {state, available_targets, total_targets}}}``. Returns ``None`` when
-    no target has a grid, so the page can render an empty state.
+    Each store (監視対象) with a grid is assigned a stable color from
+    ``_OVERVIEW_PALETTE`` (by first-seen order), so available cells can be colored by
+    which store is open there (SOT-1244).
+
+    Returns ``{dates, times, cells, available_count, target_count, target_colors}`` where
+    ``cells`` is ``{date: {time: {state, available_targets, total_targets,
+    available_target_names, colors, background}}}``. ``available_target_names`` lists the
+    open stores (stable order), ``colors`` their parallel hex colors, and ``background`` a
+    precomputed CSS background (solid color, or a ``linear-gradient`` stripe when multiple
+    stores are open; empty unless available). ``target_colors`` is ``[{name, color}, ...]``
+    for the legend. Returns ``None`` when no target has a grid, so the page can render an
+    empty state.
     """
-    grids = [t["grid"] for t in targets if t.get("grid")]
-    if not grids:
+    graded = [(t["name"], t["grid"]) for t in targets if t.get("grid")]
+    if not graded:
         return None
+
+    # Stable per-store color assignment (first-seen order, de-duplicated by name).
+    name_to_color: Dict[str, str] = {}
+    target_colors: List[Dict[str, str]] = []
+    for name, _grid in graded:
+        if name in name_to_color:
+            continue
+        color = _OVERVIEW_PALETTE[len(name_to_color) % len(_OVERVIEW_PALETTE)]
+        name_to_color[name] = color
+        target_colors.append({"name": name, "color": color})
+    store_order = {name: i for i, name in enumerate(name_to_color)}
 
     dates_set: set[str] = set()
     times_set: set[str] = set()
     # (date, time) -> [available_targets, total_targets, known_targets]
     tally: Dict[Tuple[str, str], List[int]] = {}
+    # (date, time) -> list of open store names (preserving first-seen order)
+    avail_names: Dict[Tuple[str, str], List[str]] = {}
 
-    for grid in grids:
+    for name, grid in graded:
         cells = grid.get("cells", {})
         for d, row in cells.items():
             dates_set.add(d)
@@ -221,6 +280,7 @@ def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str,
                 if state == "available":
                     entry[0] += 1
                     entry[2] += 1
+                    avail_names.setdefault((d, t), []).append(name)
                 elif state == "unavailable":
                     entry[2] += 1
 
@@ -230,9 +290,16 @@ def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str,
     out_cells: Dict[str, Dict[str, Dict[str, Any]]] = {}
     available_count = 0
     for (d, t), (avail, total, known) in tally.items():
+        names: List[str] = []
+        colors: List[str] = []
+        background = ""
         if avail > 0:
             state = "available"
             available_count += 1
+            # Sort open stores by their stable color order for consistent stripes.
+            names = sorted(avail_names.get((d, t), []), key=lambda n: store_order[n])
+            colors = [name_to_color[n] for n in names]
+            background = _overview_background(colors)
         elif known > 0:
             state = "unavailable"
         else:
@@ -241,6 +308,9 @@ def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str,
             "state": state,
             "available_targets": avail,
             "total_targets": total,
+            "available_target_names": names,
+            "colors": colors,
+            "background": background,
         }
 
     return {
@@ -248,5 +318,6 @@ def build_calendar_overview(targets: List[Dict[str, Any]]) -> Optional[Dict[str,
         "times": times,
         "cells": out_cells,
         "available_count": available_count,
-        "target_count": len(grids),
+        "target_count": len(graded),
+        "target_colors": target_colors,
     }
