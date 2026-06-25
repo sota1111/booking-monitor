@@ -46,5 +46,33 @@ wins where it differs).
   `<link>` is placed before `<style>` in all 6 templates.
 - login.html consciously excluded; documented above.
 
+---
+
+# 案B (SOT-1256: ビジュアル刷新)
+
+**Fallback disclosure (audit):** Gemini (IneligibleTier) and Codex (cooldown) still non-responsive
+(exit 75). Claude Code implemented 案B directly under the fallback policy.
+
+## Summary
+Refreshed the visual language via `static/app.css` only (additive token/component polish), keeping
+all template markup unchanged to avoid layout/i18n regressions.
+
+## Changes (static/app.css)
+- Nav gradient → brand blue→teal (`#102a43 → #0e5f6b`); deeper nav shadow.
+- New `--accent`/`--accent-strong` tokens; card radius 12→14px, softer two-layer shadow, padding
+  1.2→1.4rem; `.card h2` darker (#374151) / bolder for readability.
+- Unified interactive states: global `:focus-visible` outline (a/button/input/select/textarea);
+  shared hover/active feedback for primary buttons (`#run-btn`, `.add-form button.submit`);
+  nav logout button hover + rounded.
+
+## Commands Run
+- Jinja compile (7 templates) → ok; `ruff check .` → passed; `pytest -m "not e2e"` → 91 passed/22 skipped.
+
+## Acceptance Criteria
+- [x] ナビ/カード/ボタン/フォームの視認性向上
+- [x] フォーカス可視化でアクセシビリティ向上
+- [x] 全画面レイアウト崩れなし（markup無改変・app.cssのみ）
+- [x] ruff / pytest / Jinja compile pass
+
 ## Next Action
 READY_FOR_REVIEW
