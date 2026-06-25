@@ -96,7 +96,8 @@
     @media (max-width: 600px) {
       main { padding: 0.6rem; }
       /* Mobile: move the nav menu to the bottom of the screen (fixed bottom bar). */
-      nav .nav-links { position: fixed; left: 0; right: 0; bottom: 0; top: auto; background: linear-gradient(90deg, #1f2d3d, #2c3e50); padding: 0.5rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,0.12); justify-content: center; z-index: 20; }
+      nav .nav-links { position: fixed; left: 0; right: 0; bottom: 0; top: auto; background: linear-gradient(90deg, #1f2d3d, #2c3e50); padding: 0.5rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,0.12); justify-content: space-around; gap: 0; z-index: 20; }
+      nav .nav-links a { flex: 1; }
       body { padding-bottom: 56px; }
       .summary-grid { grid-template-columns: repeat(3, 1fr); }
       .stat-box .stat-value { font-size: 1.3rem; }
