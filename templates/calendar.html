@@ -120,7 +120,7 @@
               {% for time in overview.times %}
               {% set cell = overview.cells[date][time] if overview.cells[date] and overview.cells[date][time] else None %}
               {% if cell and cell.state == 'available' %}
-              <td class="slot-cell slot-available" title="{{ date }} {{ time }} 空きあり（{{ cell.available_targets }}/{{ cell.total_targets }}対象）">{{ cell.available_targets }}</td>
+              <td class="slot-cell slot-available" style="background:{{ cell.background }}" title="{{ date }} {{ time }} 空きあり: {{ cell.available_target_names | join('、') }}（{{ cell.available_targets }}/{{ cell.total_targets }}対象）">{{ cell.available_targets }}</td>
               {% elif cell and cell.state == 'unavailable' %}
               <td class="slot-cell slot-unavailable" title="{{ date }} {{ time }} 満席">×</td>
               {% else %}
@@ -133,7 +133,10 @@
         </table>
       </div>
       <div class="grid-legend">
-        <span><span class="legend-box slot-available"></span>空きあり（数字=空き対象数）</span>
+        <span>空きあり（店ごとに色分け・数字=空き対象数）:</span>
+        {% for tc in overview.target_colors %}
+        <span><span class="legend-box" style="background:{{ tc.color }}"></span>{{ tc.name }}</span>
+        {% endfor %}
         <span><span class="legend-box slot-unavailable"></span>満席</span>
         <span><span class="legend-box slot-unknown" style="border:1px solid #ddd"></span>不明/対象なし</span>
       </div>

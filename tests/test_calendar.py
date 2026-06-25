@@ -72,3 +72,45 @@ def test_targets_without_grid_are_ignored():
     overview = build_calendar_overview(targets)
     assert overview["target_count"] == 1
     assert overview["cells"]["2026-07-01"]["11:00"]["total_targets"] == 1
+
+
+def test_target_colors_assigned_per_store():
+    targets = [
+        {"name": "A", "grid": _grid(("2026-07-01", "11:00", True))},
+        {"name": "B", "grid": _grid(("2026-07-01", "11:00", False))},
+    ]
+    overview = build_calendar_overview(targets)
+    # One legend entry per store, each with a distinct color.
+    tc = overview["target_colors"]
+    assert [e["name"] for e in tc] == ["A", "B"]
+    assert tc[0]["color"] != tc[1]["color"]
+    # Only store A is open at this cell → solid background of A's color.
+    cell = overview["cells"]["2026-07-01"]["11:00"]
+    assert cell["available_target_names"] == ["A"]
+    assert cell["colors"] == [tc[0]["color"]]
+    assert cell["background"] == tc[0]["color"]
+
+
+def test_multiple_open_stores_use_gradient_background():
+    targets = [
+        {"name": "A", "grid": _grid(("2026-07-01", "11:00", True))},
+        {"name": "B", "grid": _grid(("2026-07-01", "11:00", True))},
+    ]
+    overview = build_calendar_overview(targets)
+    cell = overview["cells"]["2026-07-01"]["11:00"]
+    assert cell["state"] == "available"
+    assert cell["available_target_names"] == ["A", "B"]
+    assert len(cell["colors"]) == 2
+    # Both stores open → an even-stripe gradient referencing both colors.
+    assert cell["background"].startswith("linear-gradient(")
+    for color in cell["colors"]:
+        assert color in cell["background"]
+
+
+def test_unavailable_cell_has_no_color():
+    targets = [{"name": "A", "grid": _grid(("2026-07-01", "11:00", False))}]
+    overview = build_calendar_overview(targets)
+    cell = overview["cells"]["2026-07-01"]["11:00"]
+    assert cell["available_target_names"] == []
+    assert cell["colors"] == []
+    assert cell["background"] == ""
