@@ -8,6 +8,7 @@ live admin UI. This is intentionally separate from the scraping use of Playwrigh
 from __future__ import annotations
 
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -30,15 +31,20 @@ def _free_port() -> int:
         return int(s.getsockname()[1])
 
 
-@pytest.fixture(scope="session")
-def live_server() -> Iterator[str]:
+def _start_uvicorn(config_path: str) -> Iterator[str]:
+    """Start ``app:app`` under uvicorn with the given ``CONFIG_PATH`` and yield its base URL.
+
+    ``config_path`` may be ``config.example.json`` (read-only scenarios) or a path to a
+    throwaway temp copy (write scenarios that add targets), so the committed example file is
+    never mutated by an add-target POST.
+    """
     port = _free_port()
 
     env = os.environ.copy()
     env.update(
         {
             "AUTH_SECRET": E2E_AUTH_SECRET,
-            "CONFIG_PATH": "config.example.json",
+            "CONFIG_PATH": config_path,
             "GOOGLE_CLOUD_PROJECT": "",
             "DISCORD_WEBHOOK_URL": "",
         }
@@ -87,3 +93,20 @@ def live_server() -> Iterator[str]:
             proc.wait(timeout=10)
         except subprocess.TimeoutExpired:
             proc.kill()
+
+
+@pytest.fixture(scope="session")
+def live_server() -> Iterator[str]:
+    # Read-only scenarios point at the committed example config.
+    yield from _start_uvicorn("config.example.json")
+
+
+@pytest.fixture(scope="session")
+def live_server_writable(tmp_path_factory: pytest.TempPathFactory) -> Iterator[str]:
+    # Write scenarios (add-target) must not mutate the committed config.example.json:
+    # resolve_writable_config_path() writes back to CONFIG_PATH, so point it at a throwaway
+    # copy in a temp dir. The copy keeps the example's single seed target as a baseline.
+    tmp_dir = tmp_path_factory.mktemp("e2e_config")
+    tmp_config = tmp_dir / "config.json"
+    shutil.copyfile(REPO_ROOT / "config.example.json", tmp_config)
+    yield from _start_uvicorn(str(tmp_config))
