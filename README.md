@@ -225,7 +225,9 @@ python main.py
 - **安全性（冪等）**: 生成レコードは `"sample": true` でタグ付けされ、再実行時はサンプル行のみ再生成します。
   既存の実データ（非サンプル行）は保持されます。`config.sample.json` は `.gitignore` 済み（生成物）。
 
-### 監視履歴（`/history`）
+### 監視履歴（`/notification-history` 内のタブ）
+
+> 監視履歴は `/notification-history` ページのタブに統合されています（SOT-1186）。旧 URL `/history` は `/notification-history` へ 307 リダイレクトされ、引き続き利用できます。
 
 - チェック日時（JST）・対象店舗名・空きあり/満席/取得失敗の結果・状態変化の有無・通知有無・サマリー・エラー概要を表示
 - 店舗名でリアルタイム絞り込みが可能
@@ -269,14 +271,14 @@ python main.py
 
 ## GCP 環境のセットアップ
 
-### 6.1 Firestore のセットアップ
+### Firestore のセットアップ
 1. GCP コンソールで **Firestore** を選択。
 2. **ネイティブ モード**でデータベースを作成。
 3. データベース ID: `(default)` 推奨。
 4. リージョン: `asia-northeast1` (東京) 推奨。
 5. 無料枠: 1GiB ストレージ、50,000 読み取り/日、20,000 書き込み/日。
 
-### 6.2 Cloud Run へのデプロイ
+### Cloud Run へのデプロイ
 ### GCP Secret Manager セットアップ (Cloud Run本番デプロイ時)
 
 Cloud Run へのデプロイ前に、以下の機密情報をSecret Managerに登録してください。
@@ -304,7 +306,7 @@ bash scripts/deploy-cloudrun.sh
 ```
 `--allow-unauthenticated` フラグにより、未認証アクセスを許可し、各ルートはアプリケーション側のセッション（ログイン画面）で保護されます。
 
-### 6.2.1 GitHub Actions による自動デプロイ (CI/CD)
+#### GitHub Actions による自動デプロイ (CI/CD)
 
 `.github/workflows/deploy-cloudrun.yml` により、GitHub Actions から Cloud Run へ自動デプロイできます。
 
@@ -329,7 +331,7 @@ Settings → Secrets and variables → Actions で以下の **必須 Secret（10
 | `AUTH_SECRET` | セッション署名用シークレット |
 | `DISCORD_WEBHOOK_URL` | Discord Webhook URL |
 
-### 6.3 リサーチの定期実行（ローカル）
+### リサーチの定期実行（ローカル）
 
 リサーチは Web ではなくローカルから実行します（SOT-1300）。Cloud Scheduler → `POST /run` による本番自動監視は廃止しました。定期実行したい場合は、ローカル（または常駐サーバー）の cron で `python main.py` をスケジュールします。
 
