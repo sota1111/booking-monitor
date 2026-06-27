@@ -199,10 +199,6 @@
         <span>最終チェック: <strong id="last-check">{{ summary.last_check_at or '未実行' }}</strong></span>
         <span>最終通知: <strong id="last-notify">{{ summary.last_notify_at or '履歴なし' }}</strong></span>
       </div>
-      <div class="run-section">
-        <button id="run-btn" onclick="runMonitor()">手動実行</button>
-        <span id="run-result"></span>
-      </div>
     </div>
 
     <!-- History (notification + monitoring) consolidated with tabs -->
@@ -262,7 +258,7 @@
           <span class="count-label" id="count-label"></span>
         </div>
         {% if not check_records %}
-        <p style="color:#888">まだ監視履歴がありません。手動実行または自動スケジュールが実行されると記録されます。</p>
+        <p style="color:#888">まだ監視履歴がありません。ローカルのリサーチが実行されると記録されます。</p>
         {% else %}
         <div class="overflow-x">
           <table class="responsive-table">
@@ -356,36 +352,6 @@
       });
       const label = document.getElementById('count-label');
       if (label) label.textContent = visible + ' 件表示';
-    }
-
-    function runMonitor() {
-      const btn = document.getElementById('run-btn');
-      const result = document.getElementById('run-result');
-      btn.disabled = true;
-      btn.textContent = '実行中...';
-      result.textContent = '';
-      result.className = '';
-
-      fetch('/run', { method: 'POST', headers: { 'X-API-KEY': '' } })
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-          btn.disabled = false;
-          btn.textContent = '手動実行';
-          if (data.status === 'ok') {
-            const available = (data.results || []).filter(function(r) { return r.available; }).length;
-            result.textContent = '✓ 完了 — 空きあり: ' + available + '件';
-            result.className = 'result-ok';
-          } else {
-            result.textContent = '✗ エラー: ' + (data.error || '不明');
-            result.className = 'result-err';
-          }
-        })
-        .catch(function(e) {
-          btn.disabled = false;
-          btn.textContent = '手動実行';
-          result.textContent = '✗ 通信エラー: ' + e.message;
-          result.className = 'result-err';
-        });
     }
   </script>
 </body>

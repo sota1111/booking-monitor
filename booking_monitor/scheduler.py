@@ -4,8 +4,8 @@ import time
 
 from booking_monitor.checker import check_target
 from booking_monitor.config import Config
-from booking_monitor.history import History
 from booking_monitor.notifier import Notifier
+from booking_monitor.services.history_factory import get_history
 from booking_monitor.sites.browser import browser_manager_from_env
 from booking_monitor.sites.exceptions import SessionExpiredError
 
@@ -13,7 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 async def _run_loop(config: Config) -> None:
-    history = History()
+    # SOT-1300: local research persists results through the same backend the Web
+    # reads from — Firestore when GOOGLE_CLOUD_PROJECT is set, else local history.
+    history = get_history()
     notifier = Notifier(config.notification)
     last_check: dict = {}
     # Tracks targets already notified about an expired session, so we notify on

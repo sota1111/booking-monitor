@@ -16,6 +16,10 @@ from booking_monitor.services.config_loader import (
     sample_mode_enabled,
 )
 from booking_monitor.services.history_factory import get_history
+from booking_monitor.services.targets_store import (
+    firestore_targets_active,
+    get_firestore_targets,
+)
 from booking_monitor.services.view_models import (
     build_calendar_view,
     build_safe_config,
@@ -275,9 +279,14 @@ async def add_target(request: Request):
     )
 
     try:
-        config = load_active_config()
-        config.targets.append(target)
-        save_config(config, resolve_writable_config_path())
+        if firestore_targets_active():
+            # SOT-1300: registered input is persisted to Firestore.
+            get_firestore_targets().add_target(target)
+        else:
+            # Local / sample mode: keep writing to the JSON config file.
+            config = load_active_config()
+            config.targets.append(target)
+            save_config(config, resolve_writable_config_path())
     except Exception as e:
         logger.error(f"Failed to add target: {e}")
         return JSONResponse(

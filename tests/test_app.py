@@ -25,21 +25,6 @@ def test_root_redirect_to_login(client):
     assert response.status_code == 303
     assert response.headers["location"].endswith("/login")
 
-def test_run_monitor_unauthorized(client):
-    response = client.post("/run")
-    assert response.status_code == 401
-
-def test_run_monitor_with_api_key(client, monkeypatch):
-    monkeypatch.setenv("RUN_API_KEY", "test-key")
-
-    with patch("booking_monitor.web.monitor.run_checks") as mock_run:
-        mock_run.return_value = [{"target": "test", "available": True}]
-
-        response = client.post("/run", headers={"X-API-KEY": "test-key"})
-        assert response.status_code == 200
-        assert response.json()["status"] == "ok"
-        mock_run.assert_called_once()
-
 class _FakeResp:
     def __init__(self, status_code, payload):
         self.status_code = status_code
