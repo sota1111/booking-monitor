@@ -118,6 +118,8 @@ def _make_client(tmp_path, monkeypatch):
     save_config(_sample_config(), config_path)
     monkeypatch.setenv("CONFIG_PATH", config_path)
     monkeypatch.delenv("SEED_SAMPLE_DATA", raising=False)
+    # SOT-1300: keep these tests on the config.json path (Firestore inactive).
+    monkeypatch.delenv("GOOGLE_CLOUD_PROJECT", raising=False)
     monkeypatch.setenv("AUTH_SECRET", "test-secret")
 
     app = create_app()

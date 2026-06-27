@@ -1,6 +1,9 @@
+import logging
 import os
 
 from booking_monitor.config import load_config
+
+logger = logging.getLogger(__name__)
 
 # Sample-data mode (SOT-1152). Truthy values enable a built-in set of sample
 # targets so the dashboard can be evaluated without live scraping.
@@ -49,5 +52,27 @@ def resolve_writable_config_path() -> str:
 
 
 def load_active_config():
-    """Loads the active configuration."""
-    return load_config(resolve_config_path())
+    """Loads the active configuration.
+
+    Notification settings always come from the config file. Targets come from
+    Firestore when the Firestore targets store is active (SOT-1300: Web is
+    display-only + Firestore registration); otherwise the config-file targets are
+    used (local / sample mode). Firestore read failures fall back to the file.
+    """
+    config = load_config(resolve_config_path())
+
+    # Avoid a circular import (targets_store imports from this module).
+    from booking_monitor.services.targets_store import (
+        firestore_targets_active,
+        get_firestore_targets,
+    )
+
+    if firestore_targets_active():
+        try:
+            config.targets = get_firestore_targets().list_targets()
+        except Exception as e:
+            logger.warning(
+                "Firestore targets unavailable, using config-file targets: %s", e
+            )
+
+    return config

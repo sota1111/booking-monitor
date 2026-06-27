@@ -67,12 +67,12 @@ def create_app() -> FastAPI:
             logging.warning("Sample data seeding failed: %s", e)
 
     # Include routers
+    # SOT-1300: the Web is display-only + Firestore registration. The research
+    # execution route (POST /run) has been removed; research runs locally.
     from booking_monitor.web.auth import router as auth_router
-    from booking_monitor.web.monitor import router as monitor_router
     from booking_monitor.web.views import router as views_router
 
     app.include_router(auth_router)
     app.include_router(views_router)
-    app.include_router(monitor_router)
 
     return app

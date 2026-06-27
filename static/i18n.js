@@ -40,7 +40,6 @@
     "最終通知:": "Last notify:",
     "未実行": "Not run",
     "履歴なし": "No history",
-    "手動実行": "Run now",
     "実行中...": "Running...",
     "監視対象一覧": "Monitored targets",
     "監視対象が設定されていません。": "No monitoring targets configured.",
@@ -75,8 +74,8 @@
     "サマリー": "Summary",
     "あり": "Yes",
     "通知済": "Notified",
-    "まだ監視履歴がありません。手動実行または自動スケジュールが実行されると記録されます。":
-      "No monitor history yet. Records appear after a manual run or a scheduled run.",
+    "まだ監視履歴がありません。ローカルのリサーチが実行されると記録されます。":
+      "No monitor history yet. Records appear after the local research runs.",
 
     // --- Notification history page ---
     "通知日時": "Notified at",

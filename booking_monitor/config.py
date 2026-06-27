@@ -81,6 +81,50 @@ class Config:
     notification: Notification
 
 
+def target_from_dict(t: dict) -> Target:
+    """Deserialize a single target dict (incl. conditions/range fields) into a Target.
+
+    Shared by ``load_config`` (config.json) and the Firestore targets store so both
+    backends produce identical Target objects.
+    """
+    conditions_data = t.get("conditions")
+    conditions = None
+    if conditions_data:
+        date_range = None
+        dr = conditions_data.get("date_range")
+        if dr and dr.get("start") and dr.get("end"):
+            date_range = DateRange(start=dr["start"], end=dr["end"])
+
+        time_range = None
+        tr = conditions_data.get("time_range")
+        if tr and tr.get("start") and tr.get("end"):
+            time_range = TimeRange(
+                start=tr["start"],
+                end=tr["end"],
+                step_minutes=int(tr.get("step_minutes", 15)),
+            )
+
+        conditions = Conditions(
+            adults=conditions_data.get("adults", 2),
+            children_under_3=conditions_data.get("children_under_3", 0),
+            days_of_week=conditions_data.get("days_of_week", []),
+            time=conditions_data.get("time", ""),
+            date_range=date_range,
+            time_range=time_range,
+        )
+    return Target(
+        name=t["name"],
+        url=t["url"],
+        interval_seconds=t.get("interval_seconds", 300),
+        available_keywords=t.get("available_keywords", []),
+        unavailable_keywords=t.get("unavailable_keywords", []),
+        notify=t.get("notify", True),
+        site_type=t.get("site_type", "generic"),
+        conditions=conditions,
+        session_state_env=t.get("session_state_env", ""),
+    )
+
+
 def load_config(path: str) -> Config:
     if not os.path.exists(path):
         raise FileNotFoundError(f"Config file not found: {path}")
@@ -88,46 +132,7 @@ def load_config(path: str) -> Config:
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
-    targets = []
-    for t in data.get("targets", []):
-        conditions_data = t.get("conditions")
-        conditions = None
-        if conditions_data:
-            date_range = None
-            dr = conditions_data.get("date_range")
-            if dr and dr.get("start") and dr.get("end"):
-                date_range = DateRange(start=dr["start"], end=dr["end"])
-
-            time_range = None
-            tr = conditions_data.get("time_range")
-            if tr and tr.get("start") and tr.get("end"):
-                time_range = TimeRange(
-                    start=tr["start"],
-                    end=tr["end"],
-                    step_minutes=int(tr.get("step_minutes", 15)),
-                )
-
-            conditions = Conditions(
-                adults=conditions_data.get("adults", 2),
-                children_under_3=conditions_data.get("children_under_3", 0),
-                days_of_week=conditions_data.get("days_of_week", []),
-                time=conditions_data.get("time", ""),
-                date_range=date_range,
-                time_range=time_range,
-            )
-        targets.append(
-            Target(
-                name=t["name"],
-                url=t["url"],
-                interval_seconds=t.get("interval_seconds", 300),
-                available_keywords=t.get("available_keywords", []),
-                unavailable_keywords=t.get("unavailable_keywords", []),
-                notify=t.get("notify", True),
-                site_type=t.get("site_type", "generic"),
-                conditions=conditions,
-                session_state_env=t.get("session_state_env", ""),
-            )
-        )
+    targets = [target_from_dict(t) for t in data.get("targets", [])]
 
     notif_data = data.get("notification", {})
     channels = []
@@ -175,7 +180,11 @@ def _conditions_to_dict(conditions: Optional[Conditions]) -> Optional[dict]:
     return data
 
 
-def _target_to_dict(target: Target) -> dict:
+def target_to_dict(target: Target) -> dict:
+    """Serialize a single Target (incl. conditions/range fields) to a plain dict.
+
+    Shared by ``save_config`` (config.json) and the Firestore targets store.
+    """
     data: dict = {
         "name": target.name,
         "url": target.url,
@@ -190,6 +199,10 @@ def _target_to_dict(target: Target) -> dict:
     if conditions is not None:
         data["conditions"] = conditions
     return data
+
+
+# Backwards-compatible private alias (kept so existing internal references work).
+_target_to_dict = target_to_dict
 
 
 def _notification_to_dict(notification: Notification) -> dict:

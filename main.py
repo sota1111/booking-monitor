@@ -5,8 +5,8 @@ from logging.handlers import RotatingFileHandler
 
 from dotenv import load_dotenv
 
-from booking_monitor.config import load_config
 from booking_monitor.scheduler import run_scheduler
+from booking_monitor.services.config_loader import load_active_config
 
 
 def setup_logging() -> None:
@@ -37,14 +37,16 @@ def main() -> None:
     setup_logging()
 
     logger = logging.getLogger(__name__)
-    config_path = os.getenv("CONFIG_PATH", "config.json")
 
     logger.info("Booking Monitor starting up")
 
+    # SOT-1300: local research reads notification settings from the config file and
+    # its targets from Firestore (when GOOGLE_CLOUD_PROJECT is set); otherwise it
+    # falls back to the config-file targets (local / sample mode).
     try:
-        config = load_config(config_path)
+        config = load_active_config()
     except Exception as e:
-        logger.error(f"Failed to load config from {config_path}: {e}")
+        logger.error(f"Failed to load active config: {e}")
         sys.exit(1)
 
     logger.info(f"Loaded {len(config.targets)} target(s)")
