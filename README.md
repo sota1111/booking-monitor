@@ -138,6 +138,22 @@ python -m booking_monitor.login --url https://www.tablecheck.com/shops/.../reser
 ```
 開くURLは `--url`（繰り返し指定可）→ 環境変数 `BOOKING_LOGIN_URL`（カンマ区切り）→ 監視対象の URL の順で解決されます。Google のログイン処理自体は自動化しません（手動でログインします）。
 
+### ブラウザが開くのに操作できない場合（Ubuntu / DevContainer）
+ログインヘルパーで **ブラウザ窓は開くのにクリック/入力ができない** ことがあります。これはアプリの不具合ではなく、**表示先ディスプレイにウィンドウマネージャ（WM）が無い**ために、ウィンドウがキーボード/マウスのフォーカスを受け取れないことが原因です。DevContainer の転送ディスプレイ（`DISPLAY=:N` / `REMOTE_CONTAINERS_DISPLAY_SOCK`）や、X サーバだけが起動した headless サーバで起きます。
+
+対処（いずれか）:
+
+1. **Ubuntu の通常デスクトップのターミナルで実行する（推奨）。** 普段使っているデスクトップセッションには WM があるため、ブラウザは問題なく操作できます。DevContainer のターミナルや WM の無い転送ディスプレイ上では実行しないでください。
+2. **同じ DISPLAY で軽量ウィンドウマネージャを起動してから再実行する。**
+   ```bash
+   sudo apt-get install -y fluxbox   # または openbox
+   DISPLAY=$DISPLAY fluxbox &
+   python -m booking_monitor.login --url https://www.tablecheck.com/shops/.../reserve
+   ```
+   WM が起動するとウィンドウがフォーカスを受け取れるようになり、クリック/入力が可能になります。
+
+> ヒント: ログインヘルパーは、WM が無さそうなディスプレイを検知すると起動時に上記の対処を表示・警告します。
+
 ### 定常運用（headless・同じプロファイル再利用）
 初回ログイン後は headless で同じプロファイルを再利用できます。
 ```bash
