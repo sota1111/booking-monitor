@@ -124,6 +124,20 @@ BOOKING_USER_DATA_DIR=~/.booking-monitor/profile \
 python main.py
 ```
 
+> 注意: `python main.py` はチェックのたびにタブを開閉する巡回ループのため、ログイン画面を開いたまま待ち続ける用途には向きません。**手動ログイン専用には下記のログインヘルパーを使ってください。**
+
+### ブラウザを開いて手動ログイン（ログインヘルパー・推奨）
+ログイン専用に、headful の永続プロファイルでブラウザを開き、対象サイトに遷移して**窓を閉じるまで開いたまま**にします。ログインが完了したらブラウザ窓を閉じる（または `Ctrl+C`）と終了し、セッションは `BOOKING_USER_DATA_DIR` のプロファイルに保存されて、以降の `python main.py`（headless）で再利用されます。
+```bash
+# 監視対象（config.json / Firestore）のURLを開く
+BOOKING_USER_DATA_DIR=~/.booking-monitor/profile \
+python -m booking_monitor.login
+
+# 特定のURLを開く場合（複数指定可）
+python -m booking_monitor.login --url https://www.tablecheck.com/shops/.../reserve
+```
+開くURLは `--url`（繰り返し指定可）→ 環境変数 `BOOKING_LOGIN_URL`（カンマ区切り）→ 監視対象の URL の順で解決されます。Google のログイン処理自体は自動化しません（手動でログインします）。
+
 ### 定常運用（headless・同じプロファイル再利用）
 初回ログイン後は headless で同じプロファイルを再利用できます。
 ```bash

@@ -138,6 +138,36 @@ class BrowserManager:
         finally:
             await context.close()
 
+    async def open_persistent_window(
+        self, urls: Optional[list[str]] = None
+    ) -> BrowserContext:
+        """Persistent mode only: open the persistent context and a tab per URL.
+
+        Navigates each tab to its URL (best-effort — a navigation error/timeout is
+        logged and skipped, never raised) and returns the **live** ``BrowserContext``
+        WITHOUT closing any page. Used by the login helper (``booking_monitor.login``)
+        to keep a headful window open while a human logs in; the on-disk profile
+        persists the session. If ``urls`` is empty, a single blank page is opened so a
+        visible window still appears.
+        """
+        if self._mode != MODE_PERSISTENT:
+            raise ValueError(
+                "open_persistent_window requires persistent browser mode "
+                "(set BOOKING_BROWSER_MODE=persistent)"
+            )
+        context = await self._ensure_persistent_context()
+        target_urls = list(urls or [])
+        if not target_urls:
+            await context.new_page()
+            return context
+        for url in target_urls:
+            page = await context.new_page()
+            try:
+                await page.goto(url)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("Failed to navigate to %s: %s", url, e)
+        return context
+
     async def close(self) -> None:
         """Idempotent shutdown of whichever backend is active."""
         if self._context is not None:
