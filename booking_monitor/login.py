@@ -29,6 +29,47 @@ from booking_monitor.sites.browser import (
 logger = logging.getLogger(__name__)
 
 
+def _likely_no_window_manager() -> bool:
+    """Best-effort: True if the current display likely has no window manager.
+
+    A headful browser needs a window manager to receive keyboard/click focus. Forwarded
+    dev-container displays and bare/headless X servers usually run none, so the window
+    opens but **cannot be operated** (no clicks/typing register). We cannot query the WM
+    without extra dependencies, so we infer from the environment: a forwarded dev-container
+    display, or the absence of any desktop-session marker, strongly suggests no WM.
+    """
+    if not os.getenv("DISPLAY") and not os.getenv("WAYLAND_DISPLAY"):
+        # No display at all: headful won't show anything (a different problem).
+        return False
+    if os.getenv("REMOTE_CONTAINERS_DISPLAY_SOCK"):
+        # VS Code Dev Containers forwarded display: typically a bare X server with no WM.
+        return True
+    desktop_markers = (
+        "XDG_CURRENT_DESKTOP",
+        "DESKTOP_SESSION",
+        "WAYLAND_DISPLAY",
+        "GNOME_DESKTOP_SESSION_ID",
+    )
+    return not any(os.getenv(m) for m in desktop_markers)
+
+
+def _operability_help_text() -> str:
+    """Ubuntu-oriented guidance for 'window opens but cannot be operated'."""
+    display = os.getenv("DISPLAY", "(unset)")
+    return (
+        "● ブラウザ窓は開くのにクリック/入力ができない場合\n"
+        f"   原因: 表示先ディスプレイ (DISPLAY={display}) にウィンドウマネージャが無く、\n"
+        "         ウィンドウがキーボード/マウスのフォーカスを受け取れていません。\n"
+        "         (DevContainer の転送ディスプレイや headless サーバで起きます)\n"
+        "   対処 (いずれか):\n"
+        "     1) Ubuntu の通常デスクトップのターミナルで本コマンドを実行する (推奨)。\n"
+        "     2) 同じ DISPLAY でウィンドウマネージャを起動してから再実行する:\n"
+        "          sudo apt-get install -y fluxbox\n"
+        "          DISPLAY=$DISPLAY fluxbox &\n"
+        "        その後ログインヘルパーを再実行するとウィンドウを操作できます。\n"
+    )
+
+
 def _resolve_urls(urls: list[str] | None) -> list[str]:
     """Resolve target URLs: explicit arg → BOOKING_LOGIN_URL → active config targets."""
     candidates: list[str] = []
@@ -85,9 +126,17 @@ async def run_login(urls: list[str] | None = None) -> None:
             )
             + " ログインが完了したらブラウザ窓を閉じる（または Ctrl+C）と終了します。\n"
             " セッションはプロファイルに保存され、`python main.py`(headless)で再利用されます。\n"
-            "==============================================================\n"
+            "--------------------------------------------------------------\n"
+            + _operability_help_text()
+            + "==============================================================\n"
         )
         logger.info("Login browser opened (profile: %s)", os.path.expanduser(user_data_dir))
+        if _likely_no_window_manager():
+            logger.warning(
+                "DISPLAY=%s にウィンドウマネージャが無い可能性があります。"
+                "ブラウザを操作できない場合は下記の対処を参照してください。",
+                os.getenv("DISPLAY", "(unset)"),
+            )
         print(message, flush=True)
 
         # End when the human closes the browser window.

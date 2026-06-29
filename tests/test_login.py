@@ -8,7 +8,11 @@ These tests are NOT marked ``e2e``/``playwright`` (no browser binary required).
 import pytest
 
 import booking_monitor.sites.browser as browser_mod
-from booking_monitor.login import _resolve_urls
+from booking_monitor.login import (
+    _likely_no_window_manager,
+    _operability_help_text,
+    _resolve_urls,
+)
 from booking_monitor.sites.browser import BrowserManager
 
 
@@ -141,3 +145,53 @@ def test_resolve_urls_deduplicates(monkeypatch):
         "https://a",
         "https://b",
     ]
+
+
+# --- window-manager / operability detection ------------------------------------
+
+_WM_ENV_VARS = (
+    "DISPLAY",
+    "WAYLAND_DISPLAY",
+    "REMOTE_CONTAINERS_DISPLAY_SOCK",
+    "XDG_CURRENT_DESKTOP",
+    "DESKTOP_SESSION",
+    "GNOME_DESKTOP_SESSION_ID",
+)
+
+
+def _clear_wm_env(monkeypatch):
+    for var in _WM_ENV_VARS:
+        monkeypatch.delenv(var, raising=False)
+
+
+def test_no_wm_false_when_no_display(monkeypatch):
+    _clear_wm_env(monkeypatch)
+    # No DISPLAY/WAYLAND: headful won't render at all; not a "no WM" case.
+    assert _likely_no_window_manager() is False
+
+
+def test_no_wm_true_for_devcontainer_forwarded_display(monkeypatch):
+    _clear_wm_env(monkeypatch)
+    monkeypatch.setenv("DISPLAY", ":7")
+    monkeypatch.setenv("REMOTE_CONTAINERS_DISPLAY_SOCK", "/tmp/.X11-unix/X7")
+    assert _likely_no_window_manager() is True
+
+
+def test_no_wm_true_when_display_without_desktop_markers(monkeypatch):
+    _clear_wm_env(monkeypatch)
+    monkeypatch.setenv("DISPLAY", ":99")
+    assert _likely_no_window_manager() is True
+
+
+def test_no_wm_false_on_normal_desktop(monkeypatch):
+    _clear_wm_env(monkeypatch)
+    monkeypatch.setenv("DISPLAY", ":0")
+    monkeypatch.setenv("XDG_CURRENT_DESKTOP", "ubuntu:GNOME")
+    assert _likely_no_window_manager() is False
+
+
+def test_operability_help_text_mentions_display_and_fix(monkeypatch):
+    monkeypatch.setenv("DISPLAY", ":7")
+    text = _operability_help_text()
+    assert "DISPLAY=:7" in text
+    assert "fluxbox" in text
